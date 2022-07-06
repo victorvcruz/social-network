@@ -1,7 +1,7 @@
 CREATE TABLE account (
-	id VARCHAR,
+	id VARCHAR UNIQUE NOT NULL,
 	username VARCHAR UNIQUE NOT NULL,
-	name VARCHAR UNIQUE NOT NULL,
+	name VARCHAR NOT NULL,
 	description VARCHAR NOT NULL,
 	email VARCHAR UNIQUE NOT NULL,
 	password VARCHAR NOT NULL,
@@ -19,7 +19,7 @@ CREATE TABLE account_follow (
 );
 
 CREATE TABLE post (
-	id VARCHAR,
+	id VARCHAR UNIQUE NOT NULL,
 	account_id VARCHAR NOT NULL,
 	content VARCHAR NOT NULL,
 	created_at TIMESTAMP NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE post (
 );
 
 CREATE TABLE comment (
-	id VARCHAR,
+	id VARCHAR UNIQUE NOT NULL,
 	account_id VARCHAR NOT NULL,
 	post_id VARCHAR NOT NULL,
 	content VARCHAR NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE comment (
 );
 
 CREATE TABLE interactions (
-	id VARCHAR,
+	id VARCHAR UNIQUE NOT NULL,
 	account_id VARCHAR NOT NULL,
 	post_id VARCHAR NOT NULL,
 	comment_id VARCHAR,

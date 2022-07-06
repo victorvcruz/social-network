@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"social_network_project/database/postgresql/repository"
+	"social_network_project/database/repository"
 	entities "social_network_project/entities"
 	"time"
 )
@@ -38,7 +38,10 @@ func (c *Create) CreateAccount(w http.ResponseWriter, r *http.Request) {
 
 	c.AccountRepository.InsertAccount(account)
 
-	json.NewEncoder(w).Encode(account)
+	err = json.NewEncoder(w).Encode(account)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (c *Create) CreateToken(w http.ResponseWriter, r *http.Request) {
@@ -50,24 +53,31 @@ func (c *Create) CreateToken(w http.ResponseWriter, r *http.Request) {
 
 	email := mapBody["email"].(string)
 
-	if !c.AccountRepository.ExistsAccountByEmailAndPassword(email, mapBody["password"].(string)) {
+	exist, err := c.AccountRepository.ExistsAccountByEmailAndPassword(email, mapBody["password"].(string))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !*exist {
 		w.WriteHeader(401)
 		fmt.Fprintf(w, `{"Message": "Incorrect email or password"}`)
 		return
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":  c.AccountRepository.FindAccountIDbyEmail(email),
-		"exp": time.Now().Add(time.Hour * 1).Unix(),
-	})
-
-	tokenString, err := token.SignedString([]byte("key"))
-
-	tokenStruct := entities.Token{
-		Token: tokenString,
+	id, err := c.AccountRepository.FindAccountIDbyEmail(email)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	json.NewEncoder(w).Encode(tokenStruct)
+	token, err := createTokenFromID(*id)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = json.NewEncoder(w).Encode(token)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func readBodyAndReturnMapBody(r *http.Request) (map[string]interface{}, error) {
@@ -83,4 +93,22 @@ func readBodyAndReturnMapBody(r *http.Request) (map[string]interface{}, error) {
 	}
 
 	return mapBody, nil
+}
+
+func createTokenFromID(id string) (*entities.Token, error) {
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"id":  id,
+		"exp": time.Now().Add(time.Hour * 1).Unix(),
+	})
+
+	tokenString, err := token.SignedString([]byte("key"))
+	if err != nil {
+		return nil, err
+	}
+
+	return &entities.Token{
+		Token: tokenString,
+	}, nil
+
 }
