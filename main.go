@@ -5,7 +5,7 @@ import (
 	"social_network_project/api"
 	"social_network_project/controllers"
 	"social_network_project/database/postgresql"
-	"social_network_project/database/postgresql/repository"
+	"social_network_project/database/repository"
 )
 
 func main() {
@@ -28,11 +28,13 @@ func main() {
 	create := controllers.Create{
 		AccountRepository: accountRepository,
 	}
-	view := controllers.View{}
+	view := controllers.Read{
+		AccountRepository: accountRepository,
+	}
 
 	api := api.Api{
 		Create: create,
-		View:   view,
+		Read:   view,
 	}
 
 	api.Run()
