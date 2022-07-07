@@ -169,3 +169,25 @@ func TestAccountRepository_ChangeAccountDataByID(t *testing.T) {
 	err := repo.ChangeAccountDataByID(&u.ID, body)
 	assert.Error(t, err)
 }
+
+func TestAccountRepository_DeleteAccountByID(t *testing.T) {
+
+	db, mock := NewMock()
+	repo := &AccountRepository{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		UPDATE account 
+		SET deleted = true 
+		WHERE id = $1`
+
+	prep := mock.ExpectPrepare(query)
+
+	prep.ExpectExec().WithArgs(u.ID).WillReturnResult(sqlmock.NewResult(0, 1))
+
+	err := repo.DeleteAccountByID(&u.ID)
+	assert.Error(t, err)
+}

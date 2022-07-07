@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/go-playground/validator/v10"
 	"log"
 	"social_network_project/api"
 	"social_network_project/controllers"
@@ -27,6 +28,7 @@ func main() {
 
 	create := controllers.Create{
 		AccountRepository: accountRepository,
+		Validate:          validator.New(),
 	}
 	read := controllers.Read{
 		AccountRepository: accountRepository,
@@ -34,12 +36,18 @@ func main() {
 
 	change := controllers.Change{
 		AccountRepository: accountRepository,
+		Validate:          validator.New(),
+	}
+
+	delete := controllers.Delete{
+		AccountRepository: accountRepository,
 	}
 
 	api := api.Api{
 		Create: create,
 		Read:   read,
 		Change: change,
+		Delete: delete,
 	}
 
 	api.Run()

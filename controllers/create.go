@@ -3,11 +3,13 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"social_network_project/controllers/validate"
 	"social_network_project/database/repository"
 	entities "social_network_project/entities"
 	"time"
@@ -15,6 +17,7 @@ import (
 
 type Create struct {
 	AccountRepository repository.AccountRepository
+	Validate          *validator.Validate
 }
 
 func (c *Create) CreateAccount(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +42,19 @@ func (c *Create) CreateAccount(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:   time.Now().UTC().Format("2006-01-02"),
 		UpdatedAt:   time.Now().UTC().Format("2006-01-02"),
 		Deleted:     false,
+	}
+
+	mapper := make(map[string]interface{})
+
+	err = c.Validate.Struct(account)
+	if err != nil {
+		w.WriteHeader(400)
+		mapper["errors"] = validate.RequestValidate(err)
+		err = json.NewEncoder(w).Encode(mapper)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 
 	err = c.AccountRepository.InsertAccount(account)
