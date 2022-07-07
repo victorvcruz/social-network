@@ -28,13 +28,18 @@ func main() {
 	create := controllers.Create{
 		AccountRepository: accountRepository,
 	}
-	view := controllers.Read{
+	read := controllers.Read{
+		AccountRepository: accountRepository,
+	}
+
+	change := controllers.Change{
 		AccountRepository: accountRepository,
 	}
 
 	api := api.Api{
 		Create: create,
-		Read:   view,
+		Read:   read,
+		Change: change,
 	}
 
 	api.Run()

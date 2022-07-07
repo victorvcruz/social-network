@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"social_network_project/entities"
 	"strings"
 )
@@ -56,7 +57,7 @@ func (p *AccountRepository) FindAccountIDbyEmail(email string) (*string, error) 
 	return id, nil
 }
 
-func (p *AccountRepository) FindAccountbyID(id string) (*entities.Account, error) {
+func (p *AccountRepository) FindAccountByID(id *string) (*entities.Account, error) {
 	sqlStatement := `
 		SELECT id, username, name, description, email, password, created_at, updated_at, deleted
 		FROM account
@@ -87,4 +88,29 @@ func (p *AccountRepository) FindAccountbyID(id string) (*entities.Account, error
 	account.UpdatedAt = strings.Join(strings.Split(account.CreatedAt, "T00:00:00Z"), "")
 
 	return &account, nil
+}
+
+func (p *AccountRepository) ChangeAccountDataByID(id *string, mapBody map[string]interface{}) error {
+	sqlStatement := dinamicQueryChangeAccountDataByID(mapBody)
+
+	_, err := p.Db.Exec(sqlStatement, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func dinamicQueryChangeAccountDataByID(mapBody map[string]interface{}) string {
+
+	var values []interface{}
+	var where []string
+
+	for key, value := range mapBody {
+		values = append(values, value)
+		where = append(where, fmt.Sprintf(`"%s" = '%s'`, key, value))
+	}
+	stringQuery := "UPDATE account SET " + strings.Join(where, ", ") + " WHERE id = $1"
+
+	return stringQuery
 }
