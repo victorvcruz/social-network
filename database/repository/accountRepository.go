@@ -30,7 +30,8 @@ func (p *AccountRepository) ExistsAccountByEmailAndPassword(email string, passwo
 		SELECT email, password 
 		FROM account
 		WHERE email = $1
-		AND password = $2`
+		AND password = $2
+		AND deleted = false`
 	rows, err := p.Db.Query(sqlStatement, email, password)
 	if err != nil {
 		return nil, err
@@ -44,7 +45,8 @@ func (p *AccountRepository) FindAccountIDbyEmail(email string) (*string, error) 
 	sqlStatement := `
 		SELECT id
 		FROM account
-		WHERE email = $1`
+		WHERE email = $1
+		AND deleted = false`
 	rows, err := p.Db.Query(sqlStatement, email)
 	if err != nil {
 		return nil, err
@@ -61,7 +63,8 @@ func (p *AccountRepository) FindAccountByID(id *string) (*entities.Account, erro
 	sqlStatement := `
 		SELECT id, username, name, description, email, password, created_at, updated_at, deleted
 		FROM account
-		WHERE id = $1`
+		WHERE id = $1
+		AND deleted = false`
 	rows, err := p.Db.Query(sqlStatement, id)
 	if err != nil {
 		return nil, err
@@ -110,7 +113,37 @@ func dinamicQueryChangeAccountDataByID(mapBody map[string]interface{}) string {
 		values = append(values, value)
 		where = append(where, fmt.Sprintf(`"%s" = '%s'`, key, value))
 	}
-	stringQuery := "UPDATE account SET " + strings.Join(where, ", ") + " WHERE id = $1"
+	stringQuery := "UPDATE account SET " + strings.Join(where, ", ") + " WHERE id = $1 AND deleted = false"
 
 	return stringQuery
+}
+
+func (p *AccountRepository) DeleteAccountByID(id *string) error {
+	sqlStatement := `
+		UPDATE account 
+		SET deleted = true 
+		WHERE id = $1
+		AND deleted = false`
+
+	_, err := p.Db.Exec(sqlStatement, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *AccountRepository) ExistsAccountByID(id *string) (*bool, error) {
+	sqlStatement := `
+		SELECT id
+		FROM account
+		WHERE id = $1
+		AND deleted = false`
+	rows, err := p.Db.Query(sqlStatement, id)
+	if err != nil {
+		return nil, err
+	}
+
+	next := rows.Next()
+	return &next, nil
 }

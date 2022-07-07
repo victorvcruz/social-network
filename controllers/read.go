@@ -22,6 +22,16 @@ func (v *Read) GetAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	existID, err := v.AccountRepository.ExistsAccountByID(id)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if !*existID {
+		w.WriteHeader(401)
+		fmt.Fprintf(w, `{"Message": "Id does not exist"}`)
+		return
+	}
+
 	account, err := v.AccountRepository.FindAccountByID(id)
 	if err != nil {
 		log.Fatal(err)
