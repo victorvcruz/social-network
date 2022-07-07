@@ -27,6 +27,33 @@ func (a *AccountsRequest) CreateAccount(c *gin.Context) {
 		log.Fatal(err)
 	}
 
+	var b *string
+	username := mapBody["username"].(string)
+	b = &username
+	exist, err := a.AccountRepository.ExistsAccountByUsername(b)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if *exist {
+		c.JSON(http.StatusConflict, gin.H{
+			"Message": "User already exists",
+		})
+		return
+	}
+
+	email := mapBody["email"].(string)
+	b = &email
+	exist, err = a.AccountRepository.ExistsAccountByEmail(b)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if *exist {
+		c.JSON(http.StatusConflict, gin.H{
+			"Message": "Email already exists",
+		})
+		return
+	}
+
 	account, err := a.Create.Account(mapBody)
 	if err != nil {
 		log.Fatal(err)
@@ -48,6 +75,7 @@ func (a *AccountsRequest) CreateAccount(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, account)
+	return
 
 }
 
@@ -83,6 +111,7 @@ func (a *AccountsRequest) CreateToken(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, token)
+	return
 }
 
 func (a *AccountsRequest) GetAccount(c *gin.Context) {
@@ -103,6 +132,7 @@ func (a *AccountsRequest) GetAccount(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"Message": "Id does not exist",
 		})
+		return
 	}
 
 	account, err := a.AccountRepository.FindAccountByID(id)
@@ -111,6 +141,7 @@ func (a *AccountsRequest) GetAccount(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, account)
+	return
 
 }
 
@@ -133,11 +164,39 @@ func (a *AccountsRequest) ChangeAccount(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"Message": "Id does not exist",
 		})
+		return
 	}
 
 	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	var b *string
+	username := mapBody["username"].(string)
+	b = &username
+	exist, err := a.AccountRepository.ExistsAccountByUsername(b)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if *exist {
+		c.JSON(http.StatusConflict, gin.H{
+			"Message": "User already exists",
+		})
+		return
+	}
+
+	email := mapBody["email"].(string)
+	b = &email
+	exist, err = a.AccountRepository.ExistsAccountByEmail(b)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if *exist {
+		c.JSON(http.StatusConflict, gin.H{
+			"Message": "Email already exists",
+		})
+		return
 	}
 
 	account, err := a.AccountRepository.FindAccountByID(id)
@@ -160,6 +219,7 @@ func (a *AccountsRequest) ChangeAccount(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, account)
+	return
 }
 
 func (a *AccountsRequest) DeleteAccount(c *gin.Context) {
@@ -179,6 +239,7 @@ func (a *AccountsRequest) DeleteAccount(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"Message": "Id does not exist",
 		})
+		return
 	}
 
 	account, err := a.AccountRepository.FindAccountByID(id)
@@ -193,6 +254,7 @@ func (a *AccountsRequest) DeleteAccount(c *gin.Context) {
 
 	account.Deleted = true
 	c.JSON(http.StatusOK, account)
+	return
 }
 
 func readBodyAndReturnMapBody(body io.ReadCloser) (map[string]interface{}, error) {

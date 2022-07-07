@@ -147,3 +147,33 @@ func (p *AccountRepository) ExistsAccountByID(id *string) (*bool, error) {
 	next := rows.Next()
 	return &next, nil
 }
+
+func (p *AccountRepository) ExistsAccountByUsername(username *string) (*bool, error) {
+	sqlStatement := `
+		SELECT id
+		FROM account
+		WHERE username = $1
+		AND deleted = false`
+	rows, err := p.Db.Query(sqlStatement, username)
+	if err != nil {
+		return nil, err
+	}
+
+	next := rows.Next()
+	return &next, nil
+}
+
+func (p *AccountRepository) ExistsAccountByEmail(email *string) (*bool, error) {
+	sqlStatement := `
+		SELECT id
+		FROM account
+		WHERE email = $1
+		AND deleted = false`
+	rows, err := p.Db.Query(sqlStatement, email)
+	if err != nil {
+		return nil, err
+	}
+
+	next := rows.Next()
+	return &next, nil
+}

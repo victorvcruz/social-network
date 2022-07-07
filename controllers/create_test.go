@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"social_network_project/entities"
@@ -11,9 +10,7 @@ import (
 
 func TestCreate_CreateToken(t *testing.T) {
 
-	create := Create{
-		Validate: validator.New(),
-	}
+	create := Create{}
 
 	id := "6c08496b-b721-4e06-b0b7-1905524c9da2"
 

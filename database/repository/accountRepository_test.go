@@ -144,7 +144,7 @@ func TestAccountRepository_dinamicQueryChangeAccountDataByID(t *testing.T) {
 		where = append(where, fmt.Sprintf(`"%s" = '%s'`, key, value))
 	}
 
-	stringQueryExpected := "UPDATE account SET " + strings.Join(where, ", ") + " WHERE id = $1"
+	stringQueryExpected := "UPDATE account SET " + strings.Join(where, ", ") + " WHERE id = $1 AND deleted = false"
 
 	stringQuery := dinamicQueryChangeAccountDataByID(body)
 
@@ -189,5 +189,77 @@ func TestAccountRepository_DeleteAccountByID(t *testing.T) {
 	prep.ExpectExec().WithArgs(u.ID).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err := repo.DeleteAccountByID(&u.ID)
+	assert.Error(t, err)
+}
+
+func TestAccountRepository_ExistsAccountByID(t *testing.T) {
+	db, mock := NewMock()
+	repo := &AccountRepository{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT id
+		FROM account
+		WHERE id = $1
+		AND deleted = false`
+
+	rows := sqlmock.NewRows([]string{"id"}).
+		AddRow(u.ID)
+
+	mock.ExpectQuery(query).WithArgs(u.ID).WillReturnRows(rows)
+
+	exist, err := repo.ExistsAccountByID(&u.ID)
+	assert.Empty(t, exist)
+	assert.Error(t, err)
+}
+
+func TestAccountRepository_ExistsAccountByUsername(t *testing.T) {
+	db, mock := NewMock()
+	repo := &AccountRepository{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT id
+		FROM account
+		WHERE username = $1
+		AND deleted = false`
+
+	rows := sqlmock.NewRows([]string{"id", "username"}).
+		AddRow(u.ID, u.Username)
+
+	mock.ExpectQuery(query).WithArgs(u.Email).WillReturnRows(rows)
+
+	exist, err := repo.ExistsAccountByUsername(&u.Username)
+	assert.Empty(t, exist)
+	assert.Error(t, err)
+}
+
+func TestAccountRepository_ExistsAccountByEmail(t *testing.T) {
+	db, mock := NewMock()
+	repo := &AccountRepository{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT id
+		FROM account
+		WHERE email = $1
+		AND deleted = false`
+
+	rows := sqlmock.NewRows([]string{"id", "email"}).
+		AddRow(u.ID, u.Email)
+
+	mock.ExpectQuery(query).WithArgs(u.Email).WillReturnRows(rows)
+
+	exist, err := repo.ExistsAccountByEmail(&u.Email)
+	assert.Empty(t, exist)
 	assert.Error(t, err)
 }
