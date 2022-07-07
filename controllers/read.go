@@ -22,7 +22,7 @@ func (v *Read) GetAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account, err := v.AccountRepository.FindAccountbyID(*id)
+	account, err := v.AccountRepository.FindAccountByID(id)
 	if err != nil {
 		log.Fatal(err)
 	}

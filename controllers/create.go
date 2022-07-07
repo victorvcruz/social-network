@@ -19,7 +19,12 @@ type Create struct {
 
 func (c *Create) CreateAccount(w http.ResponseWriter, r *http.Request) {
 
-	mapBody, err := readBodyAndReturnMapBody(r)
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	mapBody, err := readBodyAndReturnMapBody(body)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -36,7 +41,10 @@ func (c *Create) CreateAccount(w http.ResponseWriter, r *http.Request) {
 		Deleted:     false,
 	}
 
-	c.AccountRepository.InsertAccount(account)
+	err = c.AccountRepository.InsertAccount(account)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	err = json.NewEncoder(w).Encode(account)
 	if err != nil {
@@ -46,7 +54,12 @@ func (c *Create) CreateAccount(w http.ResponseWriter, r *http.Request) {
 
 func (c *Create) CreateToken(w http.ResponseWriter, r *http.Request) {
 
-	mapBody, err := readBodyAndReturnMapBody(r)
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	mapBody, err := readBodyAndReturnMapBody(body)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,11 +93,7 @@ func (c *Create) CreateToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func readBodyAndReturnMapBody(r *http.Request) (map[string]interface{}, error) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
+func readBodyAndReturnMapBody(body []byte) (map[string]interface{}, error) {
 
 	var mapBody map[string]interface{}
 

@@ -10,6 +10,7 @@ import (
 type Api struct {
 	Create controllers.Create
 	Read   controllers.Read
+	Change controllers.Change
 }
 
 func (a *Api) Run() {
@@ -17,7 +18,7 @@ func (a *Api) Run() {
 	router.HandleFunc("/accounts", a.Create.CreateAccount).Methods("POST")
 	router.HandleFunc("/accounts/auth", a.Create.CreateToken).Methods("POST")
 	router.HandleFunc("/accounts", a.Read.GetAccount).Methods("GET")
-	router.HandleFunc("/accounts", controllers.ChangeAccount).Methods("PUT")
+	router.HandleFunc("/accounts", a.Change.ChangeAccount).Methods("PUT")
 	router.HandleFunc("/accounts", controllers.DeleteAccount).Methods("DELETE")
 
 	log.Fatal(http.ListenAndServe(":8000", router))

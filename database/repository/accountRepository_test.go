@@ -2,11 +2,13 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"social_network_project/entities"
+	"strings"
 	"testing"
 	"time"
 )
@@ -21,6 +23,14 @@ var u = &entities.Account{
 	CreatedAt:   time.Now().UTC().Format("2006-01-02"),
 	UpdatedAt:   time.Now().UTC().Format("2006-01-02"),
 	Deleted:     false,
+}
+
+var body = map[string]interface{}{
+	"username":    "maciel",
+	"name":        "Nicole Miguel Maciel ",
+	"description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer porta vehicula purus bibendum pretium.",
+	"email":       "ralph333@gmail.com",
+	"password":    "2222",
 }
 
 func NewMock() (*sql.DB, sqlmock.Sqlmock) {
@@ -119,7 +129,43 @@ func TestAccountRepository_FindAccountbyID(t *testing.T) {
 
 	mock.ExpectQuery(query).WithArgs(u.ID).WillReturnRows(rows)
 
-	account, err := repo.FindAccountbyID(u.ID)
+	account, err := repo.FindAccountByID(&u.ID)
 	assert.Empty(t, account)
+	assert.Error(t, err)
+}
+
+func TestAccountRepository_dinamicQueryChangeAccountDataByID(t *testing.T) {
+
+	var values []interface{}
+	var where []string
+
+	for key, value := range body {
+		values = append(values, value)
+		where = append(where, fmt.Sprintf(`"%s" = '%s'`, key, value))
+	}
+
+	stringQueryExpected := "UPDATE account SET " + strings.Join(where, ", ") + " WHERE id = $1"
+
+	stringQuery := dinamicQueryChangeAccountDataByID(body)
+
+	assert.Equal(t, len(stringQueryExpected), len(stringQuery))
+}
+
+func TestAccountRepository_ChangeAccountDataByID(t *testing.T) {
+
+	db, mock := NewMock()
+	repo := &AccountRepository{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := dinamicQueryChangeAccountDataByID(body)
+
+	prep := mock.ExpectPrepare(query)
+
+	prep.ExpectExec().WithArgs(u.ID).WillReturnResult(sqlmock.NewResult(0, 1))
+
+	err := repo.ChangeAccountDataByID(&u.ID, body)
 	assert.Error(t, err)
 }
