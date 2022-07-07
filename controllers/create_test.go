@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"encoding/json"
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"social_network_project/entities"
@@ -9,23 +9,12 @@ import (
 	"time"
 )
 
-func TestCreate_readBodyAndReturnMapBody(t *testing.T) {
-
-	body := `{"Message": "Hello World"}`
-
-	mapBody, err := readBodyAndReturnMapBody([]byte(body))
-	assert.Nil(t, err)
-
-	var mapBodyExpected map[string]interface{}
-
-	err = json.Unmarshal([]byte(body), &mapBodyExpected)
-	assert.Nil(t, err)
-
-	assert.Equal(t, mapBodyExpected, mapBody)
-
-}
-
 func TestCreate_CreateToken(t *testing.T) {
+
+	create := Create{
+		Validate: validator.New(),
+	}
+
 	id := "6c08496b-b721-4e06-b0b7-1905524c9da2"
 
 	tokenExpected := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -46,7 +35,7 @@ func TestCreate_CreateToken(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	tokenStruct, err := createTokenFromID(id)
+	tokenStruct, err := create.Token(id)
 	assert.Nil(t, err)
 
 	tokenDecode := jwt.MapClaims{}

@@ -1,26 +1,25 @@
 package api
 
 import (
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 	"log"
-	"net/http"
-	"social_network_project/controllers"
+	"social_network_project/api/request"
 )
 
 type Api struct {
-	Create controllers.Create
-	Read   controllers.Read
-	Change controllers.Change
-	Delete controllers.Delete
+	AccountsRequest request.AccountsRequest
 }
 
 func (a *Api) Run() {
-	router := mux.NewRouter()
-	router.HandleFunc("/accounts", a.Create.CreateAccount).Methods("POST")
-	router.HandleFunc("/accounts/auth", a.Create.CreateToken).Methods("POST")
-	router.HandleFunc("/accounts", a.Read.GetAccount).Methods("GET")
-	router.HandleFunc("/accounts", a.Change.ChangeAccount).Methods("PUT")
-	router.HandleFunc("/accounts", a.Delete.DeleteAccount).Methods("DELETE")
+	router := gin.Default()
+	router.POST("/accounts", a.AccountsRequest.CreateAccount)
+	router.POST("/accounts/auth", a.AccountsRequest.CreateToken)
+	router.GET("/accounts", a.AccountsRequest.GetAccount)
+	router.PUT("/accounts", a.AccountsRequest.ChangeAccount)
+	router.DELETE("/accounts", a.AccountsRequest.DeleteAccount)
 
-	log.Fatal(http.ListenAndServe(":8000", router))
+	err := router.Run(":8080")
+	if err != nil {
+		log.Panic(err)
+	}
 }
