@@ -63,7 +63,7 @@ func TestAccountRepository_InsertAccount(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestAccountRepository_ExistsAccountByEmailAndPassword(t *testing.T) {
+func TestAccountRepository_FindAccountPasswordByEmail(t *testing.T) {
 	db, mock := NewMock()
 	repo := &AccountRepository{db}
 
@@ -72,18 +72,18 @@ func TestAccountRepository_ExistsAccountByEmailAndPassword(t *testing.T) {
 	}()
 
 	query := `
-		SELECT email, password 
+		SELECT password 
 		FROM account
 		WHERE email = $1
-		AND password = $2`
+		AND deleted = false`
 
-	rows := sqlmock.NewRows([]string{"email", "password"}).
-		AddRow(u.Email, u.Password)
+	rows := sqlmock.NewRows([]string{"password", "email"}).
+		AddRow(u.Password, u.Email)
 
 	mock.ExpectQuery(query).WithArgs(u.Email).WillReturnRows(rows)
 
-	exist, err := repo.ExistsAccountByEmailAndPassword(u.Email, u.Password)
-	assert.Empty(t, exist)
+	id, err := repo.FindAccountIDbyEmail(u.Email)
+	assert.Empty(t, id)
 	assert.Error(t, err)
 }
 

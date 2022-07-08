@@ -3,20 +3,20 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"log"
-	"social_network_project/api/request"
+	"social_network_project/api/handler"
 )
 
 type Api struct {
-	AccountsRequest request.AccountsRequest
+	AccountsAPI request.AccountsAPI
 }
 
 func (a *Api) Run() {
 	router := gin.Default()
-	router.POST("/accounts", a.AccountsRequest.CreateAccount)
-	router.POST("/accounts/auth", a.AccountsRequest.CreateToken)
-	router.GET("/accounts", a.AccountsRequest.GetAccount)
-	router.PUT("/accounts", a.AccountsRequest.ChangeAccount)
-	router.DELETE("/accounts", a.AccountsRequest.DeleteAccount)
+	router.POST("/accounts", a.AccountsAPI.CreateAccount)
+	router.POST("/accounts/auth", a.AccountsAPI.CreateToken)
+	router.GET("/accounts", a.AccountsAPI.GetAccount)
+	router.PUT("/accounts", a.AccountsAPI.UpdateAccount)
+	router.DELETE("/accounts", a.AccountsAPI.DeleteAccount)
 
 	err := router.Run(":8080")
 	if err != nil {

@@ -10,8 +10,8 @@ CREATE TABLE account (
         deleted BOOLEAN NOT NULL,
         PRIMARY KEY (id)
 );
-CREATE UNIQUE INDEX account_username_index ON account(username, delete) WHERE deleted = false;
-CREATE UNIQUE INDEX account_email_index ON account(email, delete) WHERE deleted = false;
+CREATE UNIQUE INDEX account_username_index ON account(username, deleted) WHERE deleted = false;
+CREATE UNIQUE INDEX account_email_index ON account(email, deleted) WHERE deleted = false;
 
 CREATE TABLE account_follow (
 	account_id VARCHAR NOT NULL,
