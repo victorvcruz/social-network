@@ -36,7 +36,7 @@ func RequestValidate(err error) []string {
 			errors = append(errors, "Short password")
 		}
 		if err.Namespace() == "Account.Password" && err.Tag() == "lte" {
-			errors = append(errors, "Short password")
+			errors = append(errors, "Long password")
 		}
 	}
 

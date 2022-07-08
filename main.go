@@ -4,7 +4,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"log"
 	"social_network_project/api"
-	"social_network_project/api/request"
+	"social_network_project/api/handler"
 	"social_network_project/controllers"
 	"social_network_project/database/postgresql"
 	"social_network_project/database/repository"
@@ -31,14 +31,14 @@ func main() {
 		AccountRepository: accountRepository,
 	}
 
-	AccountsRequest := request.AccountsRequest{
+	AccountsRequest := request.AccountsAPI{
 		AccountRepository: accountRepository,
 		Validate:          validator.New(),
 		Create:            create,
 	}
 
 	api := api.Api{
-		AccountsRequest: AccountsRequest,
+		AccountsAPI: AccountsRequest,
 	}
 
 	api.Run()

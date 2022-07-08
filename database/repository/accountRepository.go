@@ -25,20 +25,22 @@ func (p *AccountRepository) InsertAccount(account *entities.Account) error {
 	return nil
 }
 
-func (p *AccountRepository) ExistsAccountByEmailAndPassword(email string, password string) (*bool, error) {
+func (p *AccountRepository) FindAccountPasswordByEmail(email string) (*string, error) {
 	sqlStatement := `
-		SELECT email, password 
+		SELECT password 
 		FROM account
 		WHERE email = $1
-		AND password = $2
 		AND deleted = false`
-	rows, err := p.Db.Query(sqlStatement, email, password)
+	rows, err := p.Db.Query(sqlStatement, email)
 	if err != nil {
 		return nil, err
 	}
 
-	next := rows.Next()
-	return &next, nil
+	rows.Next()
+	var password *string
+	_ = rows.Scan(&password)
+
+	return password, nil
 }
 
 func (p *AccountRepository) FindAccountIDbyEmail(email string) (*string, error) {
