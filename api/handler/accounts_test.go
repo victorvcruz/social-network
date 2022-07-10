@@ -1,10 +1,11 @@
-package request
+package handler
 
 import (
 	"encoding/json"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"io"
+	"os"
 	"social_network_project/entities"
 	"strings"
 	"testing"
@@ -36,7 +37,7 @@ func TestAccounts_DecodeTokenAndReturnID(t *testing.T) {
 		"exp": time.Now().Add(time.Hour * 1).Unix(),
 	})
 
-	tokenString, err := token.SignedString([]byte("key"))
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_TOKEN_KEY")))
 	assert.Nil(t, err)
 
 	tokenStructExpected := entities.Token{
@@ -48,7 +49,7 @@ func TestAccounts_DecodeTokenAndReturnID(t *testing.T) {
 
 	tokenDecodeExpected := jwt.MapClaims{}
 	_, err = jwt.ParseWithClaims(tokenStructExpected.Token, tokenDecodeExpected, func(token *jwt.Token) (interface{}, error) {
-		return []byte("key"), nil
+		return []byte(os.Getenv("JWT_TOKEN_KEY")), nil
 	})
 	assert.Nil(t, err)
 
@@ -95,4 +96,65 @@ func TestAccountsAPI_mergeAccountToUpdatedAccount(t *testing.T) {
 
 	assert.Equal(t, accountExpected, accountUpdated)
 
+}
+
+func TestAccountsAPI_CreateAccount(t *testing.T) {
+	var body = map[string]interface{}{
+		"username":    "maciel",
+		"name":        "Nicole Miguel Maciel ",
+		"description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer porta vehicula purus bibendum pretium.",
+		"email":       "ralph333@gmail.com",
+		"password":    "2222",
+	}
+
+	accountExpected := &entities.Account{
+		ID:          "e1d0f3c5-3af4-4b1c-a847-1c5d8e98b2a0",
+		Username:    body["username"].(string),
+		Name:        body["name"].(string),
+		Description: body["description"].(string),
+		Email:       body["email"].(string),
+		Password:    body["password"].(string),
+		CreatedAt:   time.Now().UTC().Format("2006-01-02"),
+		UpdatedAt:   time.Now().UTC().Format("2006-01-02"),
+		Deleted:     false,
+	}
+
+	account := CreateAccount(body)
+	account.ID = "e1d0f3c5-3af4-4b1c-a847-1c5d8e98b2a0"
+
+	assert.Equal(t, accountExpected, account)
+
+}
+
+func TestAccountsAPI_CreateToken(t *testing.T) {
+
+	id := "6c08496b-b721-4e06-b0b7-1905524c9da2"
+
+	tokenExpected := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"id":  id,
+		"exp": time.Now().Add(time.Hour * 1).Unix(),
+	})
+
+	tokenString, err := tokenExpected.SignedString([]byte(os.Getenv("JWT_TOKEN_KEY")))
+	assert.Nil(t, err)
+
+	tokenStructExpected := entities.Token{
+		Token: tokenString,
+	}
+
+	tokenDecodeExpected := jwt.MapClaims{}
+	_, err = jwt.ParseWithClaims(tokenStructExpected.Token, tokenDecodeExpected, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("JWT_TOKEN_KEY")), nil
+	})
+	assert.Nil(t, err)
+
+	tokenStruct, err := CreateToken(id)
+	assert.Nil(t, err)
+
+	tokenDecode := jwt.MapClaims{}
+	_, err = jwt.ParseWithClaims(tokenStruct.Token, tokenDecode, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("JWT_TOKEN_KEY")), nil
+	})
+
+	assert.Equal(t, tokenDecodeExpected["id"], tokenDecode["id"])
 }
