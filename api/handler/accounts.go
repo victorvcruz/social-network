@@ -70,7 +70,7 @@ func (a *AccountsAPI) CreateAccount(c *gin.Context) {
 		return
 	}
 
-	account := CreateAccount(mapBody)
+	account := CreateAccountStruct(mapBody)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func (a *AccountsAPI) GetAccount(c *gin.Context) {
 	id, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"Message": "CreateToken Invalid",
+			"Message": "Token Invalid",
 		})
 		return
 	}
@@ -185,7 +185,7 @@ func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 	id, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"Message": "CreateToken Invalid",
+			"Message": "Token Invalid",
 		})
 		return
 	}
@@ -263,7 +263,7 @@ func (a *AccountsAPI) DeleteAccount(c *gin.Context) {
 	id, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"Message": "CreateToken Invalid",
+			"Message": "Token Invalid",
 		})
 		return
 	}
@@ -347,7 +347,7 @@ func mergeAccountToUpdatedAccount(account *entities.Account, mapBody map[string]
 	return account
 }
 
-func CreateAccount(mapBody map[string]interface{}) *entities.Account {
+func CreateAccountStruct(mapBody map[string]interface{}) *entities.Account {
 
 	account := &entities.Account{
 		ID:          uuid.New().String(),

@@ -119,7 +119,7 @@ func TestAccountsAPI_CreateAccount(t *testing.T) {
 		Deleted:     false,
 	}
 
-	account := CreateAccount(body)
+	account := CreateAccountStruct(body)
 	account.ID = "e1d0f3c5-3af4-4b1c-a847-1c5d8e98b2a0"
 
 	assert.Equal(t, accountExpected, account)
