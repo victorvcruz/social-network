@@ -11,13 +11,13 @@ import (
 )
 
 type PostsAPI struct {
-	PostsController   controllers.PostsController
+	PostController    controllers.PostsController
 	AccountController controllers.AccountsController
 }
 
 func RegisterPostsHandlers(handler *gin.Engine, postsController controllers.PostsController, accountsController controllers.AccountsController) {
 	ac := &PostsAPI{
-		PostsController:   postsController,
+		PostController:    postsController,
 		AccountController: accountsController,
 	}
 
@@ -62,7 +62,7 @@ func (a *PostsAPI) CreatePost(c *gin.Context) {
 
 	post := CreatePostStruct(mapBody, accountID)
 
-	err = a.PostsController.InsertPost(post)
+	err = a.PostController.InsertPost(post)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func (a *PostsAPI) GetPost(c *gin.Context) {
 		return
 	}
 
-	postsOfAccount, err := a.PostsController.FindPostsByAccountID(accountID)
+	postsOfAccount, err := a.PostController.FindPostsByAccountID(accountID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -142,7 +142,7 @@ func (a *PostsAPI) UpdatePost(c *gin.Context) {
 
 	postID := mapBody["id"].(string)
 
-	existID, err = a.PostsController.ExistsPostByID(&postID)
+	existID, err = a.PostController.ExistsPostByID(&postID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -153,9 +153,9 @@ func (a *PostsAPI) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	a.PostsController.ChangePostDataByID(&postID, mapBody["content"].(string))
+	a.PostController.ChangePostDataByID(&postID, mapBody["content"].(string))
 
-	postUpdated, err := a.PostsController.FindPostByID(&postID)
+	postUpdated, err := a.PostController.FindPostByID(&postID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func (a *PostsAPI) DeletePost(c *gin.Context) {
 
 	postID := mapBody["id"].(string)
 
-	existID, err = a.PostsController.ExistsPostByID(&postID)
+	existID, err = a.PostController.ExistsPostByID(&postID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -209,12 +209,12 @@ func (a *PostsAPI) DeletePost(c *gin.Context) {
 		return
 	}
 
-	postToRemoved, err := a.PostsController.FindPostByID(&postID)
+	postToRemoved, err := a.PostController.FindPostByID(&postID)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	a.PostsController.RemovePostByID(&postID)
+	a.PostController.RemovePostByID(&postID)
 
 	c.JSON(http.StatusOK, postToRemoved)
 	return
@@ -222,7 +222,7 @@ func (a *PostsAPI) DeletePost(c *gin.Context) {
 
 func CreatePostStruct(mapBody map[string]interface{}, accountID *string) *entities.Post {
 
-	post := entities.Post{
+	return &entities.Post{
 		ID:        uuid.New().String(),
 		AccountID: *accountID,
 		Content:   mapBody["content"].(string),
@@ -230,7 +230,4 @@ func CreatePostStruct(mapBody map[string]interface{}, accountID *string) *entiti
 		UpdatedAt: time.Now().UTC().Format("2006-01-02"),
 		Removed:   false,
 	}
-
-	return &post
-
 }

@@ -15,6 +15,7 @@ import (
 	"social_network_project/controllers/crypto"
 	"social_network_project/controllers/validate"
 	"social_network_project/entities"
+	"social_network_project/entities/response"
 	"time"
 )
 
@@ -71,9 +72,6 @@ func (a *AccountsAPI) CreateAccount(c *gin.Context) {
 	}
 
 	account := CreateAccountStruct(mapBody)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	mapper := make(map[string]interface{})
 
@@ -349,7 +347,7 @@ func mergeAccountToUpdatedAccount(account *entities.Account, mapBody map[string]
 
 func CreateAccountStruct(mapBody map[string]interface{}) *entities.Account {
 
-	account := &entities.Account{
+	return &entities.Account{
 		ID:          uuid.New().String(),
 		Username:    mapBody["username"].(string),
 		Name:        mapBody["name"].(string),
@@ -360,11 +358,9 @@ func CreateAccountStruct(mapBody map[string]interface{}) *entities.Account {
 		UpdatedAt:   time.Now().UTC().Format("2006-01-02"),
 		Deleted:     false,
 	}
-
-	return account
 }
 
-func CreateToken(id string) (*entities.Token, error) {
+func CreateToken(id string) (*response.Token, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":  id,
@@ -376,7 +372,7 @@ func CreateToken(id string) (*entities.Token, error) {
 		return nil, err
 	}
 
-	return &entities.Token{
+	return &response.Token{
 		Token: tokenString,
 	}, nil
 }

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"social_network_project/entities"
+	"social_network_project/entities/response"
 	"strings"
 	"testing"
 	"time"
@@ -40,7 +41,7 @@ func TestAccounts_DecodeTokenAndReturnID(t *testing.T) {
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_TOKEN_KEY")))
 	assert.Nil(t, err)
 
-	tokenStructExpected := entities.Token{
+	tokenStructExpected := response.Token{
 		Token: tokenString,
 	}
 
@@ -138,7 +139,7 @@ func TestAccountsAPI_CreateToken(t *testing.T) {
 	tokenString, err := tokenExpected.SignedString([]byte(os.Getenv("JWT_TOKEN_KEY")))
 	assert.Nil(t, err)
 
-	tokenStructExpected := entities.Token{
+	tokenStructExpected := response.Token{
 		Token: tokenString,
 	}
 

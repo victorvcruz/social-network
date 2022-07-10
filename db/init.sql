@@ -35,6 +35,7 @@ CREATE TABLE comment (
 	id VARCHAR UNIQUE NOT NULL,
 	account_id VARCHAR NOT NULL,
 	post_id VARCHAR NOT NULL,
+	comment_id VARCHAR,
 	content VARCHAR NOT NULL,
 	created_at TIMESTAMP NOT NULL,
         updated_at TIMESTAMP NOT NULL,
