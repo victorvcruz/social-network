@@ -11,7 +11,7 @@ import (
 
 var p = &entities.Post{
 	ID:        uuid.New().String(),
-	AccountID: "marcelito001",
+	AccountID: "f981d822-7efb-4e66-aa84-99f517820ca3",
 	Content:   "Marcelo Sabido",
 	CreatedAt: time.Now().UTC().Format("2006-01-02"),
 	UpdatedAt: time.Now().UTC().Format("2006-01-02"),

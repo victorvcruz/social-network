@@ -1,4 +1,4 @@
-package entities
+package response
 
 type Token struct {
 	Token string

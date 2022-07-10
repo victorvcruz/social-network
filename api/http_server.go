@@ -11,6 +11,7 @@ func InitAPI() *gin.Engine {
 
 	handler.RegisterAccountsHandlers(ginServer, controllers.NewAccountsController())
 	handler.RegisterPostsHandlers(ginServer, controllers.NewPostsController(), controllers.NewAccountsController())
+	handler.RegisterCommentsHandlers(ginServer, controllers.NewCommentsController(), controllers.NewPostsController(), controllers.NewAccountsController())
 
 	return ginServer
 }
