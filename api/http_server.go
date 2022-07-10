@@ -10,7 +10,7 @@ func InitAPI() *gin.Engine {
 	ginServer := gin.Default()
 
 	handler.RegisterAccountsHandlers(ginServer, controllers.NewAccountsController())
-	handler.RegisterPostsHandlers(ginServer, controllers.NewPostsController())
+	handler.RegisterPostsHandlers(ginServer, controllers.NewPostsController(), controllers.NewAccountsController())
 
 	return ginServer
 }
