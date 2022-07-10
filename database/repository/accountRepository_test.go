@@ -44,7 +44,7 @@ func NewMock() (*sql.DB, sqlmock.Sqlmock) {
 
 func TestAccountRepository_InsertAccount(t *testing.T) {
 	db, mock := NewMock()
-	repo := &AccountRepository{db}
+	repo := AccountRepositoryStruct{db}
 
 	defer func() {
 		db.Close()
@@ -65,7 +65,7 @@ func TestAccountRepository_InsertAccount(t *testing.T) {
 
 func TestAccountRepository_FindAccountPasswordByEmail(t *testing.T) {
 	db, mock := NewMock()
-	repo := &AccountRepository{db}
+	repo := AccountRepositoryStruct{db}
 
 	defer func() {
 		db.Close()
@@ -89,7 +89,7 @@ func TestAccountRepository_FindAccountPasswordByEmail(t *testing.T) {
 
 func TestAccountRepository_FindAccountIDbyEmail(t *testing.T) {
 	db, mock := NewMock()
-	repo := &AccountRepository{db}
+	repo := AccountRepositoryStruct{db}
 
 	defer func() {
 		db.Close()
@@ -112,7 +112,7 @@ func TestAccountRepository_FindAccountIDbyEmail(t *testing.T) {
 
 func TestAccountRepository_FindAccountbyID(t *testing.T) {
 	db, mock := NewMock()
-	repo := &AccountRepository{db}
+	repo := AccountRepositoryStruct{db}
 
 	defer func() {
 		db.Close()
@@ -154,7 +154,7 @@ func TestAccountRepository_dinamicQueryChangeAccountDataByID(t *testing.T) {
 func TestAccountRepository_ChangeAccountDataByID(t *testing.T) {
 
 	db, mock := NewMock()
-	repo := &AccountRepository{db}
+	repo := AccountRepositoryStruct{db}
 
 	defer func() {
 		db.Close()
@@ -173,7 +173,7 @@ func TestAccountRepository_ChangeAccountDataByID(t *testing.T) {
 func TestAccountRepository_DeleteAccountByID(t *testing.T) {
 
 	db, mock := NewMock()
-	repo := &AccountRepository{db}
+	repo := AccountRepositoryStruct{db}
 
 	defer func() {
 		db.Close()
@@ -194,7 +194,7 @@ func TestAccountRepository_DeleteAccountByID(t *testing.T) {
 
 func TestAccountRepository_ExistsAccountByID(t *testing.T) {
 	db, mock := NewMock()
-	repo := &AccountRepository{db}
+	repo := AccountRepositoryStruct{db}
 
 	defer func() {
 		db.Close()
@@ -218,7 +218,7 @@ func TestAccountRepository_ExistsAccountByID(t *testing.T) {
 
 func TestAccountRepository_ExistsAccountByUsername(t *testing.T) {
 	db, mock := NewMock()
-	repo := &AccountRepository{db}
+	repo := AccountRepositoryStruct{db}
 
 	defer func() {
 		db.Close()
@@ -242,7 +242,7 @@ func TestAccountRepository_ExistsAccountByUsername(t *testing.T) {
 
 func TestAccountRepository_ExistsAccountByEmail(t *testing.T) {
 	db, mock := NewMock()
-	repo := &AccountRepository{db}
+	repo := AccountRepositoryStruct{db}
 
 	defer func() {
 		db.Close()

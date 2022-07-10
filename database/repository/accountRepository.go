@@ -3,15 +3,32 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"social_network_project/database/postgresql"
 	"social_network_project/entities"
 	"strings"
 )
 
-type AccountRepository struct {
+type AccountRepository interface {
+	InsertAccount(account *entities.Account) error
+	FindAccountPasswordByEmail(email string) (*string, error)
+	FindAccountIDbyEmail(email string) (*string, error)
+	FindAccountByID(id *string) (*entities.Account, error)
+	ChangeAccountDataByID(id *string, mapBody map[string]interface{}) error
+	DeleteAccountByID(id *string) error
+	ExistsAccountByID(id *string) (*bool, error)
+	ExistsAccountByUsername(username *string) (*bool, error)
+	ExistsAccountByEmail(email *string) (*bool, error)
+}
+
+type AccountRepositoryStruct struct {
 	Db *sql.DB
 }
 
-func (p *AccountRepository) InsertAccount(account *entities.Account) error {
+func NewAccountRepository() AccountRepository {
+	return &AccountRepositoryStruct{postgresql.Db}
+}
+
+func (p *AccountRepositoryStruct) InsertAccount(account *entities.Account) error {
 	sqlStatement := `
 		INSERT INTO account (id, username, name, description, email, password, created_at, updated_at, deleted)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
@@ -25,7 +42,7 @@ func (p *AccountRepository) InsertAccount(account *entities.Account) error {
 	return nil
 }
 
-func (p *AccountRepository) FindAccountPasswordByEmail(email string) (*string, error) {
+func (p *AccountRepositoryStruct) FindAccountPasswordByEmail(email string) (*string, error) {
 	sqlStatement := `
 		SELECT password 
 		FROM account
@@ -43,7 +60,7 @@ func (p *AccountRepository) FindAccountPasswordByEmail(email string) (*string, e
 	return password, nil
 }
 
-func (p *AccountRepository) FindAccountIDbyEmail(email string) (*string, error) {
+func (p *AccountRepositoryStruct) FindAccountIDbyEmail(email string) (*string, error) {
 	sqlStatement := `
 		SELECT id
 		FROM account
@@ -61,7 +78,7 @@ func (p *AccountRepository) FindAccountIDbyEmail(email string) (*string, error) 
 	return id, nil
 }
 
-func (p *AccountRepository) FindAccountByID(id *string) (*entities.Account, error) {
+func (p *AccountRepositoryStruct) FindAccountByID(id *string) (*entities.Account, error) {
 	sqlStatement := `
 		SELECT id, username, name, description, email, password, created_at, updated_at, deleted
 		FROM account
@@ -95,7 +112,7 @@ func (p *AccountRepository) FindAccountByID(id *string) (*entities.Account, erro
 	return &account, nil
 }
 
-func (p *AccountRepository) ChangeAccountDataByID(id *string, mapBody map[string]interface{}) error {
+func (p *AccountRepositoryStruct) ChangeAccountDataByID(id *string, mapBody map[string]interface{}) error {
 	sqlStatement := dinamicQueryChangeAccountDataByID(mapBody)
 
 	_, err := p.Db.Exec(sqlStatement, id)
@@ -120,7 +137,7 @@ func dinamicQueryChangeAccountDataByID(mapBody map[string]interface{}) string {
 	return stringQuery
 }
 
-func (p *AccountRepository) DeleteAccountByID(id *string) error {
+func (p *AccountRepositoryStruct) DeleteAccountByID(id *string) error {
 	sqlStatement := `
 		UPDATE account 
 		SET deleted = true 
@@ -135,7 +152,7 @@ func (p *AccountRepository) DeleteAccountByID(id *string) error {
 	return nil
 }
 
-func (p *AccountRepository) ExistsAccountByID(id *string) (*bool, error) {
+func (p *AccountRepositoryStruct) ExistsAccountByID(id *string) (*bool, error) {
 	sqlStatement := `
 		SELECT id
 		FROM account
@@ -150,7 +167,7 @@ func (p *AccountRepository) ExistsAccountByID(id *string) (*bool, error) {
 	return &next, nil
 }
 
-func (p *AccountRepository) ExistsAccountByUsername(username *string) (*bool, error) {
+func (p *AccountRepositoryStruct) ExistsAccountByUsername(username *string) (*bool, error) {
 	sqlStatement := `
 		SELECT id
 		FROM account
@@ -165,7 +182,7 @@ func (p *AccountRepository) ExistsAccountByUsername(username *string) (*bool, er
 	return &next, nil
 }
 
-func (p *AccountRepository) ExistsAccountByEmail(email *string) (*bool, error) {
+func (p *AccountRepositoryStruct) ExistsAccountByEmail(email *string) (*bool, error) {
 	sqlStatement := `
 		SELECT id
 		FROM account

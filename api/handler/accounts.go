@@ -1,25 +1,39 @@
-package request
+package handler
 
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"social_network_project/controllers"
 	"social_network_project/controllers/crypto"
 	"social_network_project/controllers/validate"
-	"social_network_project/database/repository"
 	"social_network_project/entities"
+	"time"
 )
 
 type AccountsAPI struct {
-	AccountRepository repository.AccountRepository
-	Validate          *validator.Validate
-	Create            controllers.Create
+	Controller controllers.AccountsController
+	Validate   *validator.Validate
+}
+
+func RegisterAccountsHandlers(handler *gin.Engine, accountsController controllers.AccountsController) {
+	ac := &AccountsAPI{
+		Controller: accountsController,
+		Validate:   validator.New(),
+	}
+
+	handler.POST("/accounts", ac.CreateAccount)
+	handler.POST("/accounts/auth", ac.CreateToken)
+	handler.GET("/accounts", ac.GetAccount)
+	handler.PUT("/accounts", ac.UpdateAccount)
+	handler.DELETE("/accounts", ac.DeleteAccount)
 }
 
 func (a *AccountsAPI) CreateAccount(c *gin.Context) {
@@ -32,7 +46,7 @@ func (a *AccountsAPI) CreateAccount(c *gin.Context) {
 	var b *string
 	username := mapBody["username"].(string)
 	b = &username
-	exist, err := a.AccountRepository.ExistsAccountByUsername(b)
+	exist, err := a.Controller.ExistsAccountByUsername(b)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,7 +59,7 @@ func (a *AccountsAPI) CreateAccount(c *gin.Context) {
 
 	email := mapBody["email"].(string)
 	b = &email
-	exist, err = a.AccountRepository.ExistsAccountByEmail(b)
+	exist, err = a.Controller.ExistsAccountByEmail(b)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,7 +70,7 @@ func (a *AccountsAPI) CreateAccount(c *gin.Context) {
 		return
 	}
 
-	account, err := a.Create.Account(mapBody)
+	account := CreateAccount(mapBody)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,7 +92,7 @@ func (a *AccountsAPI) CreateAccount(c *gin.Context) {
 
 	account.Password = *hashedPassword
 
-	err = a.AccountRepository.InsertAccount(account)
+	err = a.Controller.InsertAccount(account)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -97,7 +111,7 @@ func (a *AccountsAPI) CreateToken(c *gin.Context) {
 
 	email := mapBody["email"].(string)
 
-	exist, err := a.AccountRepository.ExistsAccountByEmail(&email)
+	exist, err := a.Controller.ExistsAccountByEmail(&email)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -109,7 +123,7 @@ func (a *AccountsAPI) CreateToken(c *gin.Context) {
 		return
 	}
 
-	passwordHash, err := a.AccountRepository.FindAccountPasswordByEmail(email)
+	passwordHash, err := a.Controller.FindAccountPasswordByEmail(email)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -121,12 +135,12 @@ func (a *AccountsAPI) CreateToken(c *gin.Context) {
 		return
 	}
 
-	id, err := a.AccountRepository.FindAccountIDbyEmail(email)
+	id, err := a.Controller.FindAccountIDbyEmail(email)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	token, err := a.Create.Token(*id)
+	token, err := CreateToken(*id)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -140,12 +154,12 @@ func (a *AccountsAPI) GetAccount(c *gin.Context) {
 	id, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"Message": "Token Invalid",
+			"Message": "CreateToken Invalid",
 		})
 		return
 	}
 
-	existID, err := a.AccountRepository.ExistsAccountByID(id)
+	existID, err := a.Controller.ExistsAccountByID(id)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -156,7 +170,7 @@ func (a *AccountsAPI) GetAccount(c *gin.Context) {
 		return
 	}
 
-	account, err := a.AccountRepository.FindAccountByID(id)
+	account, err := a.Controller.FindAccountByID(id)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -171,7 +185,7 @@ func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 	id, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"Message": "Token Invalid",
+			"Message": "CreateToken Invalid",
 		})
 		return
 	}
@@ -182,7 +196,7 @@ func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 	}
 	if mapBody["username"] != nil {
 		username := mapBody["username"].(string)
-		exist, err := a.AccountRepository.ExistsAccountByUsername(&username)
+		exist, err := a.Controller.ExistsAccountByUsername(&username)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -196,7 +210,7 @@ func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 
 	if mapBody["email"] != nil {
 		email := mapBody["email"].(string)
-		exist, err := a.AccountRepository.ExistsAccountByEmail(&email)
+		exist, err := a.Controller.ExistsAccountByEmail(&email)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -208,7 +222,7 @@ func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 		}
 	}
 
-	account, err := a.AccountRepository.FindAccountByID(id)
+	account, err := a.Controller.FindAccountByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"Message": "Id does not exist",
@@ -237,7 +251,7 @@ func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 		mapBody["password"] = *hashedPassword
 	}
 
-	if err = a.AccountRepository.ChangeAccountDataByID(id, mapBody); err != nil {
+	if err = a.Controller.ChangeAccountDataByID(id, mapBody); err != nil {
 		log.Fatal(err)
 	}
 
@@ -249,12 +263,12 @@ func (a *AccountsAPI) DeleteAccount(c *gin.Context) {
 	id, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"Message": "Token Invalid",
+			"Message": "CreateToken Invalid",
 		})
 		return
 	}
 
-	existID, err := a.AccountRepository.ExistsAccountByID(id)
+	existID, err := a.Controller.ExistsAccountByID(id)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -265,12 +279,12 @@ func (a *AccountsAPI) DeleteAccount(c *gin.Context) {
 		return
 	}
 
-	account, err := a.AccountRepository.FindAccountByID(id)
+	account, err := a.Controller.FindAccountByID(id)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = a.AccountRepository.DeleteAccountByID(id)
+	err = a.Controller.DeleteAccountByID(id)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -299,7 +313,7 @@ func decodeTokenAndReturnID(token string) (*string, error) {
 
 	tokenDecode := jwt.MapClaims{}
 	_, err := jwt.ParseWithClaims(token, tokenDecode, func(token *jwt.Token) (interface{}, error) {
-		return []byte("key"), nil
+		return []byte(os.Getenv("JWT_TOKEN_KEY")), nil
 	})
 	if err != nil {
 		return nil, err
@@ -331,4 +345,38 @@ func mergeAccountToUpdatedAccount(account *entities.Account, mapBody map[string]
 	}
 
 	return account
+}
+
+func CreateAccount(mapBody map[string]interface{}) *entities.Account {
+
+	account := &entities.Account{
+		ID:          uuid.New().String(),
+		Username:    mapBody["username"].(string),
+		Name:        mapBody["name"].(string),
+		Description: mapBody["description"].(string),
+		Email:       mapBody["email"].(string),
+		Password:    mapBody["password"].(string),
+		CreatedAt:   time.Now().UTC().Format("2006-01-02"),
+		UpdatedAt:   time.Now().UTC().Format("2006-01-02"),
+		Deleted:     false,
+	}
+
+	return account
+}
+
+func CreateToken(id string) (*entities.Token, error) {
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"id":  id,
+		"exp": time.Now().Add(time.Hour * 1).Unix(),
+	})
+
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_TOKEN_KEY")))
+	if err != nil {
+		return nil, err
+	}
+
+	return &entities.Token{
+		Token: tokenString,
+	}, nil
 }
