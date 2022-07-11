@@ -3,9 +3,9 @@ package entities
 import "social_network_project/entities/response"
 
 type Post struct {
-	ID        string
+	ID        string `validate:"required"`
 	AccountID string
-	Content   string
+	Content   string `validate:"required"`
 	CreatedAt string
 	UpdatedAt string
 	Removed   bool

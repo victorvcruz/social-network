@@ -2,23 +2,26 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"log"
 	"net/http"
 	"social_network_project/controllers"
+	"social_network_project/controllers/errors"
+	"social_network_project/controllers/validate"
 	"social_network_project/entities"
 	"time"
 )
 
 type PostsAPI struct {
-	PostController    controllers.PostsController
-	AccountController controllers.AccountsController
+	PostController controllers.PostsController
+	Validate       *validator.Validate
 }
 
-func RegisterPostsHandlers(handler *gin.Engine, postsController controllers.PostsController, accountsController controllers.AccountsController) {
+func RegisterPostsHandlers(handler *gin.Engine, postsController controllers.PostsController) {
 	ac := &PostsAPI{
-		PostController:    postsController,
-		AccountController: accountsController,
+		PostController: postsController,
+		Validate:       validator.New(),
 	}
 
 	handler.POST("/posts", ac.CreatePost)
@@ -37,39 +40,37 @@ func (a *PostsAPI) CreatePost(c *gin.Context) {
 		return
 	}
 
-	existID, err := a.AccountController.ExistsAccountByID(accountID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !*existID {
-		c.JSON(http.StatusNotFound, gin.H{
-			"Message": "Account id does not exist",
-		})
-		return
-	}
-
 	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	if mapBody["content"] == nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"Message": "Add content",
-		})
-		return
+		log.Println(err)
 	}
 
 	post := CreatePostStruct(mapBody, accountID)
 
+	mapper := make(map[string]interface{})
+	err = a.Validate.Struct(post)
+	if err != nil {
+		mapper["errors"] = validate.RequestPostValidate(err)
+		c.JSON(http.StatusBadRequest, mapper)
+		return
+	}
+
 	err = a.PostController.InsertPost(post)
 	if err != nil {
-		log.Fatal(err)
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
 	}
 
 	c.JSON(http.StatusOK, post.ToResponse())
 	return
-
 }
 
 func (a *PostsAPI) GetPost(c *gin.Context) {
@@ -82,20 +83,18 @@ func (a *PostsAPI) GetPost(c *gin.Context) {
 		return
 	}
 
-	existID, err := a.AccountController.ExistsAccountByID(accountID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !*existID {
-		c.JSON(http.StatusNotFound, gin.H{
-			"Message": "Account id does not exist",
-		})
-		return
-	}
-
 	postsOfAccount, err := a.PostController.FindPostsByAccountID(accountID)
 	if err != nil {
-		log.Fatal(err)
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
 	}
 
 	c.JSON(http.StatusOK, postsOfAccount)
@@ -111,53 +110,40 @@ func (a *PostsAPI) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	existID, err := a.AccountController.ExistsAccountByID(accountID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !*existID {
-		c.JSON(http.StatusNotFound, gin.H{
-			"Message": "Account id does not exist",
-		})
-		return
-	}
-
 	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
-	if mapBody["content"] == nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"Message": "Add content",
-		})
-		return
-	}
-	if mapBody["id"] == nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"Message": "Add id",
-		})
-		return
-	}
+	post := CreatePostStruct(mapBody, accountID)
+	post.ID = stringNullable(mapBody["id"])
 
-	postID := mapBody["id"].(string)
-
-	existID, err = a.PostController.ExistsPostByID(&postID)
+	mapper := make(map[string]interface{})
+	err = a.Validate.Struct(post)
 	if err != nil {
-		log.Fatal(err)
-	}
-	if !*existID {
-		c.JSON(http.StatusNotFound, gin.H{
-			"Message": "Post id does not exist",
-		})
+		mapper["errors"] = validate.RequestPostValidate(err)
+		c.JSON(http.StatusBadRequest, mapper)
 		return
 	}
 
-	a.PostController.ChangePostDataByID(&postID, mapBody["content"].(string))
-
-	postUpdated, err := a.PostController.FindPostByID(&postID)
+	postUpdated, err := a.PostController.UpdatePostDataByID(post)
 	if err != nil {
-		log.Fatal(err)
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		case *errors.NotFoundPostIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
 	}
 
 	c.JSON(http.StatusOK, postUpdated)
@@ -173,48 +159,42 @@ func (a *PostsAPI) DeletePost(c *gin.Context) {
 		return
 	}
 
-	existID, err := a.AccountController.ExistsAccountByID(accountID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !*existID {
-		c.JSON(http.StatusNotFound, gin.H{
-			"Message": "Account id does not exist",
-		})
-		return
-	}
-
 	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
-	if mapBody["id"] == nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"Message": "Add id",
-		})
+	post := CreatePostStruct(mapBody, accountID)
+	post.ID = stringNullable(mapBody["id"])
+	post.Content = "--"
+
+	mapper := make(map[string]interface{})
+	err = a.Validate.Struct(post)
+	if err != nil {
+		mapper["errors"] = validate.RequestPostValidate(err)
+		c.JSON(http.StatusBadRequest, mapper)
 		return
 	}
 
-	postID := mapBody["id"].(string)
-
-	existID, err = a.PostController.ExistsPostByID(&postID)
+	postToRemoved, err := a.PostController.RemovePostByID(post, accountID)
 	if err != nil {
-		log.Fatal(err)
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		case *errors.NotFoundPostIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
 	}
-	if !*existID {
-		c.JSON(http.StatusNotFound, gin.H{
-			"Message": "Post id does not exist",
-		})
-		return
-	}
-
-	postToRemoved, err := a.PostController.FindPostByID(&postID)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	a.PostController.RemovePostByID(&postID)
 
 	c.JSON(http.StatusOK, postToRemoved)
 	return
@@ -225,9 +205,16 @@ func CreatePostStruct(mapBody map[string]interface{}, accountID *string) *entiti
 	return &entities.Post{
 		ID:        uuid.New().String(),
 		AccountID: *accountID,
-		Content:   mapBody["content"].(string),
+		Content:   stringNullable(mapBody["content"]),
 		CreatedAt: time.Now().UTC().Format("2006-01-02"),
 		UpdatedAt: time.Now().UTC().Format("2006-01-02"),
 		Removed:   false,
 	}
+}
+
+func stringNullable(str interface{}) string {
+	if str == nil {
+		return ""
+	}
+	return str.(string)
 }

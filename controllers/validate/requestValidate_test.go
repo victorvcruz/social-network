@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"social_network_project/entities"
 	"testing"
+	"time"
 )
 
 func TestRequestValidate(t *testing.T) {
@@ -23,7 +24,7 @@ func TestRequestValidate(t *testing.T) {
 	var expectedListString1 []string
 	expectedListString1 = append(expectedListString1, "Long username", "Long name", "Long description", "Invalid email", "Password only lowercase")
 
-	listString1 := RequestValidate(err)
+	listString1 := RequestAccountValidate(err)
 
 	assert.Equal(t, expectedListString1, listString1)
 
@@ -37,7 +38,7 @@ func TestRequestValidate(t *testing.T) {
 	var expectedListString2 []string
 	expectedListString2 = append(expectedListString2, "Username only lowercase", "Short name", "Short password")
 
-	listString2 := RequestValidate(err)
+	listString2 := RequestAccountValidate(err)
 
 	assert.Equal(t, expectedListString2, listString2)
 
@@ -49,7 +50,53 @@ func TestRequestValidate(t *testing.T) {
 	var expectedListString3 []string
 	expectedListString3 = append(expectedListString3, "Short username", "Long password")
 
-	listString3 := RequestValidate(err)
+	listString3 := RequestAccountValidate(err)
 
 	assert.Equal(t, expectedListString3, listString3)
+}
+
+func TestRequestPostValidate(t *testing.T) {
+	validate := validator.New()
+
+	var post = &entities.Post{
+		ID:        "",
+		AccountID: "f981d822-7efb-4e66-aa84-99f517820ca3",
+		Content:   "",
+		CreatedAt: time.Now().UTC().Format("2006-01-02"),
+		UpdatedAt: time.Now().UTC().Format("2006-01-02"),
+		Removed:   false,
+	}
+
+	err := validate.Struct(post)
+	var expectedListString1 []string
+	expectedListString1 = append(expectedListString1, "Add ID", "Add content")
+
+	listString1 := RequestPostValidate(err)
+
+	assert.Equal(t, expectedListString1, listString1)
+
+}
+
+func TestRequestCommentValidate(t *testing.T) {
+	validate := validator.New()
+
+	var comment = &entities.Comment{
+		ID:        "",
+		AccountID: "f981d822-7efb-4e66-aa84-99f517820ca3",
+		PostID:    "0d0bb472-225c-4c8a-9935-a21045c80d87",
+		CommentID: "8b607c43-0190-4c8c-9746-4b527d1d2c55",
+		Content:   "",
+		CreatedAt: time.Now().UTC().Format("2006-01-02"),
+		UpdatedAt: time.Now().UTC().Format("2006-01-02"),
+		Removed:   false,
+	}
+
+	err := validate.Struct(comment)
+	var expectedListString1 []string
+	expectedListString1 = append(expectedListString1, "Add ID", "Add content")
+
+	listString1 := RequestCommentValidate(err)
+
+	assert.Equal(t, expectedListString1, listString1)
+
 }

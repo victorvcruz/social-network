@@ -1,20 +1,23 @@
 package controllers
 
 import (
+	"github.com/golang-jwt/jwt/v4"
+	"log"
+	"os"
+	"social_network_project/controllers/crypto"
+	"social_network_project/controllers/errors"
 	"social_network_project/database/repository"
 	"social_network_project/entities"
+	"social_network_project/entities/response"
+	"time"
 )
 
 type AccountsController interface {
 	InsertAccount(account *entities.Account) error
-	FindAccountPasswordByEmail(email string) (*string, error)
-	FindAccountIDbyEmail(email string) (*string, error)
+	CreateToken(email string, password string) (*response.Token, error)
 	FindAccountByID(id *string) (*entities.Account, error)
 	ChangeAccountDataByID(id *string, mapBody map[string]interface{}) error
-	DeleteAccountByID(id *string) error
-	ExistsAccountByID(id *string) (*bool, error)
-	ExistsAccountByUsername(username *string) (*bool, error)
-	ExistsAccountByEmail(email *string) (*bool, error)
+	DeleteAccountByID(id *string) (*entities.Account, error)
 }
 
 type AccountsControllerStruct struct {
@@ -28,37 +31,136 @@ func NewAccountsController() AccountsController {
 }
 
 func (s *AccountsControllerStruct) InsertAccount(account *entities.Account) error {
+
+	existUsername, err := s.repository.ExistsAccountByUsername(&account.Username)
+	if err != nil {
+		return err
+	}
+	if *existUsername {
+		return &errors.ConflictUsernameError{}
+	}
+
+	existEmail, err := s.repository.ExistsAccountByEmail(&account.Email)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if *existEmail {
+		return &errors.ConflictEmailError{}
+	}
+
+	hashedPassword, err := crypto.EncryptPassword(account.Password)
+	if err != nil {
+		return err
+	}
+	account.Password = *hashedPassword
+
 	return s.repository.InsertAccount(account)
 }
 
-func (s *AccountsControllerStruct) FindAccountPasswordByEmail(email string) (*string, error) {
-	return s.repository.FindAccountPasswordByEmail(email)
-}
+func (s *AccountsControllerStruct) CreateToken(email string, password string) (*response.Token, error) {
 
-func (s *AccountsControllerStruct) FindAccountIDbyEmail(email string) (*string, error) {
-	return s.repository.FindAccountIDbyEmail(email)
+	existEmail, err := s.repository.ExistsAccountByEmail(&email)
+	if err != nil {
+		return nil, err
+	}
+	if !*existEmail {
+		return nil, &errors.NotFoundEmailError{}
+	}
+
+	passwordHash, err := s.repository.FindAccountPasswordByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+
+	if !crypto.CompareHashAndPassword(*passwordHash, password) {
+		return nil, &errors.UnauthorizedPasswordError{}
+	}
+
+	id, err := s.repository.FindAccountIDbyEmail(email)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := CreateTokenByID(*id)
+	if err != nil {
+		return nil, err
+	}
+
+	return token, nil
 }
 
 func (s *AccountsControllerStruct) FindAccountByID(id *string) (*entities.Account, error) {
-	return s.repository.FindAccountByID(id)
+	account, err := s.repository.FindAccountByID(id)
+	if err != nil {
+		return nil, &errors.NotFoundAccountIDError{}
+	}
+
+	return account, nil
 }
 
 func (s *AccountsControllerStruct) ChangeAccountDataByID(id *string, mapBody map[string]interface{}) error {
+
+	if mapBody["username"] != nil {
+		username := mapBody["username"].(string)
+		exist, err := s.repository.ExistsAccountByUsername(&username)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if *exist {
+			return &errors.ConflictUsernameError{}
+		}
+	}
+
+	if mapBody["email"] != nil {
+		email := mapBody["email"].(string)
+		exist, err := s.repository.ExistsAccountByEmail(&email)
+		if err != nil {
+			return err
+		}
+		if *exist {
+			return &errors.ConflictEmailError{}
+		}
+	}
+
+	if mapBody["password"] != nil {
+		hashedPassword, err := crypto.EncryptPassword(mapBody["password"].(string))
+		if err != nil {
+			return err
+		}
+		mapBody["password"] = *hashedPassword
+	}
+
 	return s.repository.ChangeAccountDataByID(id, mapBody)
 }
 
-func (s *AccountsControllerStruct) DeleteAccountByID(id *string) error {
-	return s.repository.DeleteAccountByID(id)
+func (s *AccountsControllerStruct) DeleteAccountByID(id *string) (*entities.Account, error) {
+
+	account, err := s.repository.FindAccountByID(id)
+	if err != nil {
+		return nil, &errors.NotFoundAccountIDError{}
+	}
+
+	err = s.repository.DeleteAccountByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return account, nil
 }
 
-func (s *AccountsControllerStruct) ExistsAccountByID(id *string) (*bool, error) {
-	return s.repository.ExistsAccountByID(id)
-}
+func CreateTokenByID(id string) (*response.Token, error) {
 
-func (s *AccountsControllerStruct) ExistsAccountByUsername(username *string) (*bool, error) {
-	return s.repository.ExistsAccountByUsername(username)
-}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"id":  id,
+		"exp": time.Now().Add(time.Hour * 1).Unix(),
+	})
 
-func (s *AccountsControllerStruct) ExistsAccountByEmail(email *string) (*bool, error) {
-	return s.repository.ExistsAccountByEmail(email)
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_TOKEN_KEY")))
+	if err != nil {
+		return nil, err
+	}
+
+	return &response.Token{
+		Token: tokenString,
+	}, nil
 }
