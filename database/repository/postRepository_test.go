@@ -67,7 +67,7 @@ func TestPostRepositoryStruct_FindPostsByAccountID(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestPostRepositoryStruct_ChangePostDataByID(t *testing.T) {
+func TestPostRepositoryStruct_UpdatePostDataByID(t *testing.T) {
 
 	db, mock := NewMock()
 	repo := PostRepositoryStruct{db}
@@ -86,7 +86,7 @@ func TestPostRepositoryStruct_ChangePostDataByID(t *testing.T) {
 
 	prep.ExpectExec().WithArgs(p.Content, p.UpdatedAt, p.ID).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err := repo.ChangePostDataByID(&p.ID, p.Content)
+	err := repo.UpdatePostDataByID(&p.ID, p.Content)
 	assert.Error(t, err)
 }
 

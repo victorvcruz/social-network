@@ -4,7 +4,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-func RequestValidate(err error) []string {
+func RequestAccountValidate(err error) []string {
 	var errors []string
 	for _, err := range err.(validator.ValidationErrors) {
 
@@ -37,6 +37,36 @@ func RequestValidate(err error) []string {
 		}
 		if err.Namespace() == "Account.Password" && err.Tag() == "lte" {
 			errors = append(errors, "Long password")
+		}
+	}
+
+	return errors
+}
+
+func RequestPostValidate(err error) []string {
+	var errors []string
+	for _, err := range err.(validator.ValidationErrors) {
+
+		if err.Namespace() == "Post.ID" && err.Tag() == "required" {
+			errors = append(errors, "Add ID")
+		}
+		if err.Namespace() == "Post.Content" && err.Tag() == "required" {
+			errors = append(errors, "Add content")
+		}
+	}
+
+	return errors
+}
+
+func RequestCommentValidate(err error) []string {
+	var errors []string
+	for _, err := range err.(validator.ValidationErrors) {
+
+		if err.Namespace() == "Comment.ID" && err.Tag() == "required" {
+			errors = append(errors, "Add ID")
+		}
+		if err.Namespace() == "Comment.Content" && err.Tag() == "required" {
+			errors = append(errors, "Add content")
 		}
 	}
 

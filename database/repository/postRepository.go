@@ -12,7 +12,7 @@ import (
 type PostRepository interface {
 	InsertPost(post *entities.Post) error
 	FindPostsByAccountID(id *string) ([]interface{}, error)
-	ChangePostDataByID(id *string, content string) error
+	UpdatePostDataByID(id *string, content string) error
 	FindPostByID(id *string) (*response.PostResponse, error)
 	ExistsPostByID(id *string) (*bool, error)
 	RemovePostByID(id *string) error
@@ -52,7 +52,7 @@ func (p *PostRepositoryStruct) FindPostsByAccountID(id *string) ([]interface{}, 
 		return nil, err
 	}
 
-	var list []interface{}
+	list := []interface{}{}
 	var post response.PostResponse
 	for rows.Next() {
 		err = rows.Scan(
@@ -73,7 +73,7 @@ func (p *PostRepositoryStruct) FindPostsByAccountID(id *string) ([]interface{}, 
 	return list, nil
 }
 
-func (p *PostRepositoryStruct) ChangePostDataByID(id *string, content string) error {
+func (p *PostRepositoryStruct) UpdatePostDataByID(id *string, content string) error {
 	sqlStatement := `
 		UPDATE post 
 		SET content = $1, updated_at = $2

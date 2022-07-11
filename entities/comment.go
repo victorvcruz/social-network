@@ -3,11 +3,11 @@ package entities
 import "social_network_project/entities/response"
 
 type Comment struct {
-	ID        string
+	ID        string `validate:"required"`
 	AccountID string
 	PostID    string
 	CommentID string
-	Content   string
+	Content   string `validate:"required"`
 	CreatedAt string
 	UpdatedAt string
 	Removed   bool
@@ -16,6 +16,7 @@ type Comment struct {
 func (a *Comment) ToResponse() response.CommentResponse {
 	return response.CommentResponse{
 		ID:        a.ID,
+		AccountID: a.AccountID,
 		PostID:    a.PostID,
 		CommentID: a.CommentID,
 		Content:   a.Content,

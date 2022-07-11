@@ -12,10 +12,9 @@ import (
 	"net/http"
 	"os"
 	"social_network_project/controllers"
-	"social_network_project/controllers/crypto"
+	"social_network_project/controllers/errors"
 	"social_network_project/controllers/validate"
 	"social_network_project/entities"
-	"social_network_project/entities/response"
 	"time"
 )
 
@@ -41,106 +40,73 @@ func (a *AccountsAPI) CreateAccount(c *gin.Context) {
 
 	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	var b *string
-	username := mapBody["username"].(string)
-	b = &username
-	exist, err := a.Controller.ExistsAccountByUsername(b)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if *exist {
-		c.JSON(http.StatusConflict, gin.H{
-			"Message": "User already exists",
-		})
-		return
-	}
-
-	email := mapBody["email"].(string)
-	b = &email
-	exist, err = a.Controller.ExistsAccountByEmail(b)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if *exist {
-		c.JSON(http.StatusConflict, gin.H{
-			"Message": "Email already exists",
-		})
-		return
+		log.Println(err)
 	}
 
 	account := CreateAccountStruct(mapBody)
 
 	mapper := make(map[string]interface{})
-
 	err = a.Validate.Struct(account)
 	if err != nil {
-		mapper["errors"] = validate.RequestValidate(err)
+		mapper["errors"] = validate.RequestAccountValidate(err)
 		c.JSON(http.StatusBadRequest, mapper)
 
 		return
 	}
 
-	hashedPassword, err := crypto.EncryptPassword(mapBody["password"].(string))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	account.Password = *hashedPassword
-
 	err = a.Controller.InsertAccount(account)
 	if err != nil {
-		log.Fatal(err)
+		switch e := err.(type) {
+		case *errors.ConflictUsernameError:
+			log.Println(e)
+			c.JSON(http.StatusConflict, gin.H{
+				"Message": err.Error(),
+			})
+			return
+
+		case *errors.ConflictEmailError:
+			log.Println(e)
+			c.JSON(http.StatusConflict, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
 	}
 
 	c.JSON(http.StatusOK, account.ToResponse())
 	return
-
 }
 
 func (a *AccountsAPI) CreateToken(c *gin.Context) {
 
 	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	email := mapBody["email"].(string)
+	password := mapBody["password"].(string)
 
-	exist, err := a.Controller.ExistsAccountByEmail(&email)
+	token, err := a.Controller.CreateToken(email, password)
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	if !*exist {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"Message": "Incorrect email",
-		})
-		return
-	}
-
-	passwordHash, err := a.Controller.FindAccountPasswordByEmail(email)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if !crypto.CompareHashAndPassword(*passwordHash, mapBody["password"].(string)) {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"Message": "Incorrect password",
-		})
-		return
-	}
-
-	id, err := a.Controller.FindAccountIDbyEmail(email)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	token, err := CreateToken(*id)
-	if err != nil {
-		log.Fatal(err)
+		switch e := err.(type) {
+		case *errors.NotFoundEmailError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		case *errors.UnauthorizedPasswordError:
+			log.Println(e)
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
 	}
 
 	c.JSON(http.StatusOK, token)
@@ -157,20 +123,18 @@ func (a *AccountsAPI) GetAccount(c *gin.Context) {
 		return
 	}
 
-	existID, err := a.Controller.ExistsAccountByID(id)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !*existID {
-		c.JSON(http.StatusNotFound, gin.H{
-			"Message": "Id does not exist",
-		})
-		return
-	}
-
 	account, err := a.Controller.FindAccountByID(id)
 	if err != nil {
-		log.Fatal(err)
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
 	}
 
 	c.JSON(http.StatusOK, account.ToResponse())
@@ -190,42 +154,21 @@ func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 
 	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
-		log.Fatal(err)
-	}
-	if mapBody["username"] != nil {
-		username := mapBody["username"].(string)
-		exist, err := a.Controller.ExistsAccountByUsername(&username)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if *exist {
-			c.JSON(http.StatusConflict, gin.H{
-				"Message": "User already exists",
-			})
-			return
-		}
-	}
-
-	if mapBody["email"] != nil {
-		email := mapBody["email"].(string)
-		exist, err := a.Controller.ExistsAccountByEmail(&email)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if *exist {
-			c.JSON(http.StatusConflict, gin.H{
-				"Message": "Email already exists",
-			})
-			return
-		}
+		log.Println(err)
 	}
 
 	account, err := a.Controller.FindAccountByID(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"Message": "Id does not exist",
-		})
-		return
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
 	}
 
 	accountChange := mergeAccountToUpdatedAccount(account, mapBody)
@@ -234,23 +177,31 @@ func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 
 	err = a.Validate.Struct(accountChange)
 	if err != nil {
-		mapper["errors"] = validate.RequestValidate(err)
+		mapper["errors"] = validate.RequestAccountValidate(err)
 		c.JSON(http.StatusBadRequest, mapper)
 
 		return
 	}
 
-	if mapBody["password"] != nil {
-		hashedPassword, err := crypto.EncryptPassword(mapBody["password"].(string))
-		if err != nil {
+	err = a.Controller.ChangeAccountDataByID(id, mapBody)
+	if err != nil {
+		switch e := err.(type) {
+		case *errors.ConflictUsernameError:
+			log.Println(e)
+			c.JSON(http.StatusConflict, gin.H{
+				"Message": err.Error(),
+			})
+			return
+
+		case *errors.ConflictEmailError:
+			log.Println(e)
+			c.JSON(http.StatusConflict, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
 			log.Fatal(err)
 		}
-
-		mapBody["password"] = *hashedPassword
-	}
-
-	if err = a.Controller.ChangeAccountDataByID(id, mapBody); err != nil {
-		log.Fatal(err)
 	}
 
 	c.JSON(http.StatusOK, account.ToResponse())
@@ -266,25 +217,18 @@ func (a *AccountsAPI) DeleteAccount(c *gin.Context) {
 		return
 	}
 
-	existID, err := a.Controller.ExistsAccountByID(id)
+	account, err := a.Controller.DeleteAccountByID(id)
 	if err != nil {
-		log.Fatal(err)
-	}
-	if !*existID {
-		c.JSON(http.StatusNotFound, gin.H{
-			"Message": "Id does not exist",
-		})
-		return
-	}
-
-	account, err := a.Controller.FindAccountByID(id)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = a.Controller.DeleteAccountByID(id)
-	if err != nil {
-		log.Fatal(err)
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
 	}
 
 	c.JSON(http.StatusOK, account.ToResponse())
@@ -358,21 +302,4 @@ func CreateAccountStruct(mapBody map[string]interface{}) *entities.Account {
 		UpdatedAt:   time.Now().UTC().Format("2006-01-02"),
 		Deleted:     false,
 	}
-}
-
-func CreateToken(id string) (*response.Token, error) {
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":  id,
-		"exp": time.Now().Add(time.Hour * 1).Unix(),
-	})
-
-	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_TOKEN_KEY")))
-	if err != nil {
-		return nil, err
-	}
-
-	return &response.Token{
-		Token: tokenString,
-	}, nil
 }
