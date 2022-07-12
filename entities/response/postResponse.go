@@ -6,4 +6,6 @@ type PostResponse struct {
 	Content   string
 	CreatedAt string
 	UpdatedAt string
+	Like      int
+	Dislike   int
 }

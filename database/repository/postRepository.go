@@ -17,6 +17,7 @@ type PostRepository interface {
 	ExistsPostByID(id *string) (*bool, error)
 	RemovePostByID(postID, accountID *string) error
 	ExistsPostByPostIDAndAccountID(postID, accountID *string) (*bool, error)
+	CountInteractionsForPost(postID *string, typeValue int) (*int, error)
 }
 
 type PostRepositoryStruct struct {
@@ -32,10 +33,10 @@ func (p *PostRepositoryStruct) InsertPost(post *entities.Post) error {
 		INSERT INTO post (id, account_id, content, created_at, updated_at, removed)
 		VALUES ($1, $2, $3, $4, $5, $6)`
 
-	_, err := p.Db.Exec(sqlStatement, post.ID, post.AccountID, post.Content, post.CreatedAt,
+	row := p.Db.QueryRow(sqlStatement, post.ID, post.AccountID, post.Content, post.CreatedAt,
 		post.UpdatedAt, post.Removed)
-	if err != nil {
-		return err
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil
@@ -69,6 +70,18 @@ func (p *PostRepositoryStruct) FindPostsByAccountID(id *string) ([]interface{}, 
 		post.CreatedAt = strings.Join(strings.Split(post.CreatedAt, "T00:00:00Z"), "")
 		post.UpdatedAt = strings.Join(strings.Split(post.CreatedAt, "T00:00:00Z"), "")
 
+		like, err := p.CountInteractionsForPost(&post.ID, response.INTERACTION_TYPE_LIKED.EnumIndex())
+		if err != nil {
+			return nil, err
+		}
+
+		dislike, err := p.CountInteractionsForPost(&post.ID, response.INTERACTION_TYPE_DISLIKED.EnumIndex())
+		if err != nil {
+			return nil, err
+		}
+
+		post.Like = *like
+		post.Dislike = *dislike
 		list = append(list, post)
 	}
 
@@ -85,9 +98,9 @@ func (p *PostRepositoryStruct) UpdatePostDataByID(postID, accountID, content *st
 
 	updateTime := time.Now().UTC().Format("2006-01-02")
 
-	_, err := p.Db.Exec(sqlStatement, content, updateTime, postID, accountID)
-	if err != nil {
-		return err
+	row := p.Db.QueryRow(sqlStatement, content, updateTime, postID, accountID)
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil
@@ -143,9 +156,9 @@ func (p *PostRepositoryStruct) RemovePostByID(postID, accountID *string) error {
 		WHERE id = $1
 		AND account_id = $2`
 
-	_, err := p.Db.Exec(sqlStatement, postID, accountID)
-	if err != nil {
-		return err
+	row := p.Db.QueryRow(sqlStatement, postID, accountID)
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil
@@ -165,4 +178,26 @@ func (p *PostRepositoryStruct) ExistsPostByPostIDAndAccountID(postID, accountID 
 
 	next := rows.Next()
 	return &next, nil
+}
+
+func (p *PostRepositoryStruct) CountInteractionsForPost(postID *string, typeValue int) (*int, error) {
+	sqlStatement := `
+		SELECT count(type) 
+		FROM interaction
+		WHERE post_id = $1
+		AND type = $2`
+
+	rows, err := p.Db.Query(sqlStatement, postID, typeValue)
+	if err != nil {
+		return nil, err
+	}
+
+	rows.Next()
+	var count *int
+	err = rows.Scan(&count)
+	if err != nil {
+		return nil, err
+	}
+
+	return count, nil
 }

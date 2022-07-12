@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"social_network_project/database/postgresql"
 	"social_network_project/entities"
+	"social_network_project/entities/response"
 	"strings"
 	"time"
 )
@@ -17,6 +18,7 @@ type CommentRepository interface {
 	FindCommentByID(id *string) (*entities.Comment, error)
 	RemoveCommentByID(commentID, accountID *string) error
 	ExistsCommentByCommentIDAndAccountID(commentID, accountID *string) (*bool, error)
+	CountInteractionsForComment(commentId *string, typeValue int) (*int, error)
 }
 
 type CommentRepositoryStruct struct {
@@ -32,10 +34,10 @@ func (p *CommentRepositoryStruct) InsertComment(comment *entities.Comment) error
 		INSERT INTO comment (id, account_id, post_id, comment_id, content, created_at, updated_at, removed)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
-	_, err := p.Db.Exec(sqlStatement, comment.ID, comment.AccountID, comment.PostID, comment.CommentID,
+	row := p.Db.QueryRow(sqlStatement, comment.ID, comment.AccountID, comment.PostID, comment.CommentID,
 		comment.Content, comment.CreatedAt, comment.UpdatedAt, comment.Removed)
-	if err != nil {
-		return err
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil
@@ -89,7 +91,21 @@ func (p *CommentRepositoryStruct) FindCommentsByAccountID(accountID, postID, com
 		comment.CreatedAt = strings.Join(strings.Split(comment.CreatedAt, "T00:00:00Z"), "")
 		comment.UpdatedAt = strings.Join(strings.Split(comment.CreatedAt, "T00:00:00Z"), "")
 
-		list = append(list, comment.ToResponse())
+		commentResponse := comment.ToResponse()
+
+		like, err := p.CountInteractionsForComment(&commentResponse.ID, response.INTERACTION_TYPE_LIKED.EnumIndex())
+		if err != nil {
+			return nil, err
+		}
+
+		dislike, err := p.CountInteractionsForComment(&commentResponse.ID, response.INTERACTION_TYPE_DISLIKED.EnumIndex())
+		if err != nil {
+			return nil, err
+		}
+
+		commentResponse.Like = *like
+		commentResponse.Dislike = *dislike
+		list = append(list, commentResponse)
 	}
 
 	return list, nil
@@ -125,9 +141,9 @@ func (p *CommentRepositoryStruct) UpdateCommentDataByID(commentID, accountID, co
 
 	updateTime := time.Now().UTC().Format("2006-01-02")
 
-	_, err := p.Db.Exec(sqlStatement, content, updateTime, commentID, accountID)
-	if err != nil {
-		return err
+	row := p.Db.QueryRow(sqlStatement, content, updateTime, commentID, accountID)
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil
@@ -171,9 +187,9 @@ func (p *CommentRepositoryStruct) RemoveCommentByID(commentID, accountID *string
 		WHERE id = $1
 		AND account_id = $2`
 
-	_, err := p.Db.Exec(sqlStatement, commentID, accountID)
-	if err != nil {
-		return err
+	row := p.Db.QueryRow(sqlStatement, commentID, accountID)
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil
@@ -193,4 +209,26 @@ func (p *CommentRepositoryStruct) ExistsCommentByCommentIDAndAccountID(commentID
 
 	next := rows.Next()
 	return &next, nil
+}
+
+func (p *CommentRepositoryStruct) CountInteractionsForComment(commentId *string, typeValue int) (*int, error) {
+	sqlStatement := `
+		SELECT count(type) 
+		FROM interaction
+		WHERE comment_id = $1
+		AND type = $2`
+
+	rows, err := p.Db.Query(sqlStatement, commentId, typeValue)
+	if err != nil {
+		return nil, err
+	}
+
+	rows.Next()
+	var count *int
+	err = rows.Scan(&count)
+	if err != nil {
+		return nil, err
+	}
+
+	return count, nil
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"social_network_project/entities"
+	"social_network_project/entities/response"
 	"testing"
 	"time"
 )
@@ -184,5 +185,29 @@ func TestPostRepositoryStruct_ExistsPostByPostIDAndAccountID(t *testing.T) {
 
 	exist, err := repo.ExistsPostByPostIDAndAccountID(&p.ID, &p.AccountID)
 	assert.Empty(t, exist)
+	assert.Error(t, err)
+}
+
+func TestPostRepositoryStruct_CountInteractionsForPost(t *testing.T) {
+	db, mock := NewMock()
+	repo := PostRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT count(type) 
+		FROM interaction
+		WHERE post_id = $1
+		AND type = $2`
+
+	rows := sqlmock.NewRows([]string{"post_id", "type"}).
+		AddRow(i.PostID, i.Type)
+
+	mock.ExpectQuery(query).WithArgs(i.PostID).WillReturnRows(rows)
+
+	id, err := repo.CountInteractionsForPost(&i.PostID.String, response.INTERACTION_TYPE_LIKED.EnumIndex())
+	assert.Empty(t, id)
 	assert.Error(t, err)
 }

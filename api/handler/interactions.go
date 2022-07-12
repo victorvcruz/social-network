@@ -82,11 +82,17 @@ func (a InteractionsAPI) CreateInteraction(c *gin.Context) {
 				"Message": err.Error(),
 			})
 			return
+		case *errors.ConflictAlreadyWriteError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
 		default:
 			log.Fatal(err)
 		}
 	}
-
+	
 	c.JSON(http.StatusOK, interaction.ToResponse())
 	return
 }
