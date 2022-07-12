@@ -1,13 +1,10 @@
 package handler
 
 import (
-	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
-	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +12,7 @@ import (
 	"social_network_project/controllers/errors"
 	"social_network_project/controllers/validate"
 	"social_network_project/entities"
+	"social_network_project/utils"
 	"time"
 )
 
@@ -38,7 +36,7 @@ func RegisterAccountsHandlers(handler *gin.Engine, accountsController controller
 
 func (a *AccountsAPI) CreateAccount(c *gin.Context) {
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
@@ -81,7 +79,7 @@ func (a *AccountsAPI) CreateAccount(c *gin.Context) {
 
 func (a *AccountsAPI) CreateToken(c *gin.Context) {
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
@@ -152,7 +150,7 @@ func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 		return
 	}
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
@@ -233,22 +231,6 @@ func (a *AccountsAPI) DeleteAccount(c *gin.Context) {
 
 	c.JSON(http.StatusOK, account.ToResponse())
 	return
-}
-
-func readBodyAndReturnMapBody(body io.ReadCloser) (map[string]interface{}, error) {
-
-	bodyByte, err := ioutil.ReadAll(body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var mapBody map[string]interface{}
-
-	if err := json.Unmarshal(bodyByte, &mapBody); err != nil {
-		return nil, err
-	}
-
-	return mapBody, nil
 }
 
 func decodeTokenAndReturnID(token string) (*string, error) {

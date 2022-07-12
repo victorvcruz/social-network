@@ -11,6 +11,7 @@ import (
 	"social_network_project/controllers/validate"
 	"social_network_project/entities"
 	"social_network_project/entities/response"
+	"social_network_project/utils"
 	"time"
 )
 
@@ -39,7 +40,7 @@ func (a InteractionsAPI) CreateInteraction(c *gin.Context) {
 		return
 	}
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
@@ -92,7 +93,7 @@ func (a InteractionsAPI) CreateInteraction(c *gin.Context) {
 			log.Fatal(err)
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, interaction.ToResponse())
 	return
 }
@@ -106,13 +107,13 @@ func (a InteractionsAPI) UpdateInteraction(c *gin.Context) {
 		return
 	}
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
 
 	interaction := CreateInteractionStruct(mapBody, accountID)
-	interaction.ID = stringNullable(mapBody["id"])
+	interaction.ID = utils.StringNullable(mapBody["id"])
 
 	mapper := make(map[string]interface{})
 	err = a.Validate.Struct(interaction)
@@ -155,13 +156,13 @@ func (a InteractionsAPI) DeleteInteraction(c *gin.Context) {
 		return
 	}
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
 
 	interaction := CreateInteractionStruct(mapBody, accountID)
-	interaction.ID = stringNullable(mapBody["id"])
+	interaction.ID = utils.StringNullable(mapBody["id"])
 	interaction.Type = 0
 
 	mapper := make(map[string]interface{})
@@ -198,7 +199,7 @@ func (a InteractionsAPI) DeleteInteraction(c *gin.Context) {
 
 func CreateInteractionStruct(mapBody map[string]interface{}, accountID *string) *entities.Interaction {
 
-	interaction, ok := response.ParseString(stringNullable(mapBody["type"]))
+	interaction, ok := response.ParseString(utils.StringNullable(mapBody["type"]))
 	if !ok {
 		interaction = 400
 	}
@@ -206,8 +207,8 @@ func CreateInteractionStruct(mapBody map[string]interface{}, accountID *string) 
 	return &entities.Interaction{
 		ID:        uuid.New().String(),
 		AccountID: *accountID,
-		PostID:    entities.NewNullString(stringNullable(mapBody["post_id"])),
-		CommentID: entities.NewNullString(stringNullable(mapBody["comment_id"])),
+		PostID:    utils.NewNullString(utils.StringNullable(mapBody["post_id"])),
+		CommentID: utils.NewNullString(utils.StringNullable(mapBody["comment_id"])),
 		Type:      interaction,
 		CreatedAt: time.Now().UTC().Format("2006-01-02"),
 		UpdatedAt: time.Now().UTC().Format("2006-01-02"),

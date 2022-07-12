@@ -11,6 +11,7 @@ import (
 	"social_network_project/controllers/errors"
 	"social_network_project/controllers/validate"
 	"social_network_project/entities"
+	"social_network_project/utils"
 	"time"
 )
 
@@ -42,12 +43,12 @@ func (a *CommentsAPI) CreateComment(c *gin.Context) {
 	postID := c.Param("post")
 	commentID := c.DefaultQuery("comment_id", "")
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
 
-	comment := CreateCommentStruct(mapBody, accountID, &postID, entities.NewNullString(commentID))
+	comment := CreateCommentStruct(mapBody, accountID, &postID, utils.NewNullString(commentID))
 
 	mapper := make(map[string]interface{})
 	err = a.Validate.Struct(comment)
@@ -139,15 +140,15 @@ func (a *CommentsAPI) UpdateComment(c *gin.Context) {
 		return
 	}
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
 	postID := ""
 	commentID := ""
 
-	comment := CreateCommentStruct(mapBody, accountID, &postID, entities.NewNullString(commentID))
-	comment.ID = stringNullable(mapBody["id"])
+	comment := CreateCommentStruct(mapBody, accountID, &postID, utils.NewNullString(commentID))
+	comment.ID = utils.StringNullable(mapBody["id"])
 
 	mapper := make(map[string]interface{})
 	err = a.Validate.Struct(comment)
@@ -190,14 +191,14 @@ func (a *CommentsAPI) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
 	postID := ""
 	commentID := ""
-	comment := CreateCommentStruct(mapBody, accountID, &postID, entities.NewNullString(commentID))
-	comment.ID = stringNullable(mapBody["id"])
+	comment := CreateCommentStruct(mapBody, accountID, &postID, utils.NewNullString(commentID))
+	comment.ID = utils.StringNullable(mapBody["id"])
 	comment.Content = "--"
 
 	mapper := make(map[string]interface{})
@@ -240,7 +241,7 @@ func CreateCommentStruct(mapBody map[string]interface{}, accountID, postID *stri
 		AccountID: *accountID,
 		PostID:    *postID,
 		CommentID: commentID,
-		Content:   stringNullable(mapBody["content"]),
+		Content:   utils.StringNullable(mapBody["content"]),
 		CreatedAt: time.Now().UTC().Format("2006-01-02"),
 		UpdatedAt: time.Now().UTC().Format("2006-01-02"),
 		Removed:   false,
