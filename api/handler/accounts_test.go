@@ -1,34 +1,14 @@
 package handler
 
 import (
-	"encoding/json"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
-	"io"
 	"os"
 	"social_network_project/entities"
 	"social_network_project/entities/response"
-	"strings"
 	"testing"
 	"time"
 )
-
-func TestCreate_readBodyAndReturnMapBody(t *testing.T) {
-
-	body := `{"Message": "Hello World"}`
-	stringReadCloser := io.NopCloser(strings.NewReader(body))
-
-	mapBody, err := readBodyAndReturnMapBody(stringReadCloser)
-	assert.Nil(t, err)
-
-	var mapBodyExpected map[string]interface{}
-
-	err = json.Unmarshal([]byte(body), &mapBodyExpected)
-	assert.Nil(t, err)
-
-	assert.Equal(t, mapBodyExpected, mapBody)
-
-}
 
 func TestAccounts_DecodeTokenAndReturnID(t *testing.T) {
 	idString := "6c08496b-b721-4e06-b0b7-1905524c9da2"

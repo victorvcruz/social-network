@@ -10,6 +10,7 @@ import (
 	"social_network_project/controllers/errors"
 	"social_network_project/controllers/validate"
 	"social_network_project/entities"
+	"social_network_project/utils"
 	"time"
 )
 
@@ -40,7 +41,7 @@ func (a *PostsAPI) CreatePost(c *gin.Context) {
 		return
 	}
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
@@ -112,13 +113,13 @@ func (a *PostsAPI) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
 
 	post := CreatePostStruct(mapBody, accountID)
-	post.ID = stringNullable(mapBody["id"])
+	post.ID = utils.StringNullable(mapBody["id"])
 
 	mapper := make(map[string]interface{})
 	err = a.Validate.Struct(post)
@@ -161,13 +162,13 @@ func (a *PostsAPI) DeletePost(c *gin.Context) {
 		return
 	}
 
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
 	if err != nil {
 		log.Println(err)
 	}
 
 	post := CreatePostStruct(mapBody, accountID)
-	post.ID = stringNullable(mapBody["id"])
+	post.ID = utils.StringNullable(mapBody["id"])
 	post.Content = "--"
 
 	mapper := make(map[string]interface{})
@@ -207,16 +208,9 @@ func CreatePostStruct(mapBody map[string]interface{}, accountID *string) *entiti
 	return &entities.Post{
 		ID:        uuid.New().String(),
 		AccountID: *accountID,
-		Content:   stringNullable(mapBody["content"]),
+		Content:   utils.StringNullable(mapBody["content"]),
 		CreatedAt: time.Now().UTC().Format("2006-01-02"),
 		UpdatedAt: time.Now().UTC().Format("2006-01-02"),
 		Removed:   false,
 	}
-}
-
-func stringNullable(str interface{}) string {
-	if str == nil {
-		return ""
-	}
-	return str.(string)
 }
