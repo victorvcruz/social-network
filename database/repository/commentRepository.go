@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"social_network_project/database/postgresql"
 	"social_network_project/entities"
-	"social_network_project/entities/response"
 	"strings"
 	"time"
 )
@@ -14,9 +13,10 @@ type CommentRepository interface {
 	InsertComment(comment *entities.Comment) error
 	ExistsCommentByID(id *string) (*bool, error)
 	FindCommentsByAccountID(accountID, postID, commentID *string) ([]interface{}, error)
-	UpdateCommentDataByID(id *string, content string) error
-	FindCommentByID(id *string) (*response.CommentResponse, error)
-	RemoveCommentByID(id *string) error
+	UpdateCommentDataByID(commentID, accountID, content *string) error
+	FindCommentByID(id *string) (*entities.Comment, error)
+	RemoveCommentByID(commentID, accountID *string) error
+	ExistsCommentByCommentIDAndAccountID(commentID, accountID *string) (*bool, error)
 }
 
 type CommentRepositoryStruct struct {
@@ -71,7 +71,7 @@ func (p *CommentRepositoryStruct) FindCommentsByAccountID(accountID, postID, com
 	}
 
 	list := []interface{}{}
-	var comment response.CommentResponse
+	var comment entities.Comment
 	for rows.Next() {
 		err = rows.Scan(
 			&comment.ID,
@@ -81,6 +81,7 @@ func (p *CommentRepositoryStruct) FindCommentsByAccountID(accountID, postID, com
 			&comment.Content,
 			&comment.CreatedAt,
 			&comment.UpdatedAt,
+			&comment.Removed,
 		)
 		if err != nil {
 			return nil, err
@@ -88,7 +89,7 @@ func (p *CommentRepositoryStruct) FindCommentsByAccountID(accountID, postID, com
 		comment.CreatedAt = strings.Join(strings.Split(comment.CreatedAt, "T00:00:00Z"), "")
 		comment.UpdatedAt = strings.Join(strings.Split(comment.CreatedAt, "T00:00:00Z"), "")
 
-		list = append(list, comment)
+		list = append(list, comment.ToResponse())
 	}
 
 	return list, nil
@@ -109,21 +110,22 @@ func dinamicQueryFindCommentsByAccountID(mapBody map[string]interface{}) string 
 	if strings.Join(where, " AND ") != "" {
 		str = " AND " + strings.Join(where, " AND ")
 	}
-	stringQuery := "SELECT id, account_id, post_id, comment_id, content, created_at, updated_at FROM comment WHERE account_id = $1 AND removed = false" + str
+	stringQuery := "SELECT id, account_id, post_id, comment_id, content, created_at, updated_at, removed FROM comment WHERE account_id = $1 AND removed = false" + str
 
 	return stringQuery
 }
 
-func (p *CommentRepositoryStruct) UpdateCommentDataByID(id *string, content string) error {
+func (p *CommentRepositoryStruct) UpdateCommentDataByID(commentID, accountID, content *string) error {
 	sqlStatement := `
 		UPDATE comment
 		SET content = $1, updated_at = $2
 		WHERE id = $3
+		AND account_id = $4
 		AND removed = false`
 
 	updateTime := time.Now().UTC().Format("2006-01-02")
 
-	_, err := p.Db.Exec(sqlStatement, content, updateTime, id)
+	_, err := p.Db.Exec(sqlStatement, content, updateTime, commentID, accountID)
 	if err != nil {
 		return err
 	}
@@ -131,7 +133,7 @@ func (p *CommentRepositoryStruct) UpdateCommentDataByID(id *string, content stri
 	return nil
 }
 
-func (p *CommentRepositoryStruct) FindCommentByID(id *string) (*response.CommentResponse, error) {
+func (p *CommentRepositoryStruct) FindCommentByID(id *string) (*entities.Comment, error) {
 	sqlStatement := `
 		SELECT id, account_id, post_id, comment_id, content, created_at, updated_at
 		FROM comment
@@ -144,7 +146,8 @@ func (p *CommentRepositoryStruct) FindCommentByID(id *string) (*response.Comment
 	}
 
 	rows.Next()
-	var comment response.CommentResponse
+
+	var comment entities.Comment
 	err = rows.Scan(
 		&comment.ID,
 		&comment.AccountID,
@@ -161,16 +164,33 @@ func (p *CommentRepositoryStruct) FindCommentByID(id *string) (*response.Comment
 	return &comment, nil
 }
 
-func (p *CommentRepositoryStruct) RemoveCommentByID(id *string) error {
+func (p *CommentRepositoryStruct) RemoveCommentByID(commentID, accountID *string) error {
 	sqlStatement := `
 		UPDATE comment 
 		SET removed = true
-		WHERE id = $1`
+		WHERE id = $1
+		AND account_id = $2`
 
-	_, err := p.Db.Exec(sqlStatement, id)
+	_, err := p.Db.Exec(sqlStatement, commentID, accountID)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (p *CommentRepositoryStruct) ExistsCommentByCommentIDAndAccountID(commentID, accountID *string) (*bool, error) {
+	sqlStatement := `
+		SELECT id
+		FROM comment
+		WHERE id = $1
+		AND account_id = $2
+		AND removed = false`
+	rows, err := p.Db.Query(sqlStatement, commentID, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	next := rows.Next()
+	return &next, nil
 }

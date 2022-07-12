@@ -10,28 +10,27 @@ import (
 	"social_network_project/controllers/errors"
 	"social_network_project/controllers/validate"
 	"social_network_project/entities"
+	"social_network_project/entities/response"
 	"time"
 )
 
-type PostsAPI struct {
-	Controller controllers.PostsController
+type InteractionsAPI struct {
+	Controller controllers.InteractionsController
 	Validate   *validator.Validate
 }
 
-func RegisterPostsHandlers(handler *gin.Engine, postsController controllers.PostsController) {
-	ac := &PostsAPI{
-		Controller: postsController,
+func RegisterInteractionsHandlers(handler *gin.Engine, interactionsController controllers.InteractionsController) {
+	ac := &InteractionsAPI{
+		Controller: interactionsController,
 		Validate:   validator.New(),
 	}
 
-	handler.POST("/posts", ac.CreatePost)
-	handler.GET("/accounts/posts", ac.GetPost)
-	handler.PUT("/posts", ac.UpdatePost)
-	handler.DELETE("/posts", ac.DeletePost)
+	handler.POST("/interaction", ac.CreateInteraction)
+	handler.PUT("/interaction", ac.UpdateInteraction)
+	handler.DELETE("/interaction", ac.DeleteInteraction)
 }
 
-func (a *PostsAPI) CreatePost(c *gin.Context) {
-
+func (a InteractionsAPI) CreateInteraction(c *gin.Context) {
 	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -45,95 +44,29 @@ func (a *PostsAPI) CreatePost(c *gin.Context) {
 		log.Println(err)
 	}
 
-	post := CreatePostStruct(mapBody, accountID)
+	if mapBody["post_id"] == nil && mapBody["comment_id"] == nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Message": "Add post_id or comment_id",
+		})
+		return
+	}
+
+	interaction := CreateInteractionStruct(mapBody, accountID)
 
 	mapper := make(map[string]interface{})
-	err = a.Validate.Struct(post)
+	err = a.Validate.Struct(interaction)
 	if err != nil {
-		mapper["errors"] = validate.RequestPostValidate(err)
+		mapper["errors"] = validate.RequestInteractionValidate(err)
 		c.JSON(http.StatusBadRequest, mapper)
 		return
 	}
 
-	err = a.Controller.InsertPost(post)
+	err = a.Controller.InsertInteraction(interaction)
 	if err != nil {
 		switch e := err.(type) {
 		case *errors.NotFoundAccountIDError:
 			log.Println(e)
 			c.JSON(http.StatusNotFound, gin.H{
-				"Message": err.Error(),
-			})
-			return
-		default:
-			log.Fatal(err)
-		}
-	}
-
-	c.JSON(http.StatusOK, post.ToResponse())
-	return
-}
-
-func (a *PostsAPI) GetPost(c *gin.Context) {
-
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"Message": "Token Invalid",
-		})
-		return
-	}
-
-	idToGet := c.DefaultQuery("account_id", "")
-
-	postsOfAccount, err := a.Controller.FindPostsByAccountID(accountID, &idToGet)
-	if err != nil {
-		switch e := err.(type) {
-		case *errors.NotFoundAccountIDError:
-			log.Println(e)
-			c.JSON(http.StatusNotFound, gin.H{
-				"Message": err.Error(),
-			})
-			return
-		default:
-			log.Fatal(err)
-		}
-	}
-
-	c.JSON(http.StatusOK, postsOfAccount)
-	return
-}
-
-func (a *PostsAPI) UpdatePost(c *gin.Context) {
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"Message": "Token Invalid",
-		})
-		return
-	}
-
-	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
-	if err != nil {
-		log.Println(err)
-	}
-
-	post := CreatePostStruct(mapBody, accountID)
-	post.ID = stringNullable(mapBody["id"])
-
-	mapper := make(map[string]interface{})
-	err = a.Validate.Struct(post)
-	if err != nil {
-		mapper["errors"] = validate.RequestPostValidate(err)
-		c.JSON(http.StatusBadRequest, mapper)
-		return
-	}
-
-	postUpdated, err := a.Controller.UpdatePostDataByID(post)
-	if err != nil {
-		switch e := err.(type) {
-		case *errors.UnauthorizedAccountIDError:
-			log.Println(e)
-			c.JSON(http.StatusUnauthorized, gin.H{
 				"Message": err.Error(),
 			})
 			return
@@ -143,16 +76,22 @@ func (a *PostsAPI) UpdatePost(c *gin.Context) {
 				"Message": err.Error(),
 			})
 			return
+		case *errors.NotFoundCommentIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
 		default:
 			log.Fatal(err)
 		}
 	}
 
-	c.JSON(http.StatusOK, postUpdated)
+	c.JSON(http.StatusOK, interaction.ToResponse())
 	return
 }
 
-func (a *PostsAPI) DeletePost(c *gin.Context) {
+func (a InteractionsAPI) UpdateInteraction(c *gin.Context) {
 	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -166,28 +105,27 @@ func (a *PostsAPI) DeletePost(c *gin.Context) {
 		log.Println(err)
 	}
 
-	post := CreatePostStruct(mapBody, accountID)
-	post.ID = stringNullable(mapBody["id"])
-	post.Content = "--"
+	interaction := CreateInteractionStruct(mapBody, accountID)
+	interaction.ID = stringNullable(mapBody["id"])
 
 	mapper := make(map[string]interface{})
-	err = a.Validate.Struct(post)
+	err = a.Validate.Struct(interaction)
 	if err != nil {
-		mapper["errors"] = validate.RequestPostValidate(err)
+		mapper["errors"] = validate.RequestInteractionValidate(err)
 		c.JSON(http.StatusBadRequest, mapper)
 		return
 	}
 
-	postToRemoved, err := a.Controller.RemovePostByID(post)
+	interactionUpdated, err := a.Controller.UpdateInteractonDataByID(interaction)
 	if err != nil {
 		switch e := err.(type) {
 		case *errors.UnauthorizedAccountIDError:
 			log.Println(e)
-			c.JSON(http.StatusUnauthorized, gin.H{
+			c.JSON(http.StatusNotFound, gin.H{
 				"Message": err.Error(),
 			})
 			return
-		case *errors.NotFoundPostIDError:
+		case *errors.NotFoundInteractionIDError:
 			log.Println(e)
 			c.JSON(http.StatusNotFound, gin.H{
 				"Message": err.Error(),
@@ -198,25 +136,75 @@ func (a *PostsAPI) DeletePost(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, postToRemoved)
+	c.JSON(http.StatusOK, interactionUpdated)
 	return
 }
 
-func CreatePostStruct(mapBody map[string]interface{}, accountID *string) *entities.Post {
+func (a InteractionsAPI) DeleteInteraction(c *gin.Context) {
+	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"Message": "Token Invalid",
+		})
+		return
+	}
 
-	return &entities.Post{
+	mapBody, err := readBodyAndReturnMapBody(c.Request.Body)
+	if err != nil {
+		log.Println(err)
+	}
+
+	interaction := CreateInteractionStruct(mapBody, accountID)
+	interaction.ID = stringNullable(mapBody["id"])
+	interaction.Type = 0
+
+	mapper := make(map[string]interface{})
+	err = a.Validate.Struct(interaction)
+	if err != nil {
+		mapper["errors"] = validate.RequestInteractionValidate(err)
+		c.JSON(http.StatusBadRequest, mapper)
+		return
+	}
+
+	interactionRemoved, err := a.Controller.RemoveInteractionByID(interaction)
+	if err != nil {
+		switch e := err.(type) {
+		case *errors.UnauthorizedAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		case *errors.NotFoundInteractionIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
+	}
+
+	c.JSON(http.StatusOK, interactionRemoved)
+	return
+}
+
+func CreateInteractionStruct(mapBody map[string]interface{}, accountID *string) *entities.Interaction {
+
+	interaction, ok := response.ParseString(stringNullable(mapBody["type"]))
+	if !ok {
+		interaction = 400
+	}
+
+	return &entities.Interaction{
 		ID:        uuid.New().String(),
 		AccountID: *accountID,
-		Content:   stringNullable(mapBody["content"]),
+		PostID:    entities.NewNullString(stringNullable(mapBody["post_id"])),
+		CommentID: entities.NewNullString(stringNullable(mapBody["comment_id"])),
+		Type:      interaction,
 		CreatedAt: time.Now().UTC().Format("2006-01-02"),
 		UpdatedAt: time.Now().UTC().Format("2006-01-02"),
 		Removed:   false,
 	}
-}
-
-func stringNullable(str interface{}) string {
-	if str == nil {
-		return ""
-	}
-	return str.(string)
 }

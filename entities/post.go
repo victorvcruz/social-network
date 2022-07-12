@@ -14,6 +14,7 @@ type Post struct {
 func (a *Post) ToResponse() response.PostResponse {
 	return response.PostResponse{
 		ID:        a.ID,
+		AccountID: a.AccountID,
 		Content:   a.Content,
 		CreatedAt: a.CreatedAt,
 		UpdatedAt: a.UpdatedAt,

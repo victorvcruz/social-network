@@ -12,10 +12,11 @@ import (
 type PostRepository interface {
 	InsertPost(post *entities.Post) error
 	FindPostsByAccountID(id *string) ([]interface{}, error)
-	UpdatePostDataByID(id *string, content string) error
+	UpdatePostDataByID(postID, accountID, content *string) error
 	FindPostByID(id *string) (*response.PostResponse, error)
 	ExistsPostByID(id *string) (*bool, error)
-	RemovePostByID(id *string) error
+	RemovePostByID(postID, accountID *string) error
+	ExistsPostByPostIDAndAccountID(postID, accountID *string) (*bool, error)
 }
 
 type PostRepositoryStruct struct {
@@ -42,7 +43,7 @@ func (p *PostRepositoryStruct) InsertPost(post *entities.Post) error {
 
 func (p *PostRepositoryStruct) FindPostsByAccountID(id *string) ([]interface{}, error) {
 	sqlStatement := `
-		SELECT id, content, created_at, updated_at
+		SELECT id, account_id, content, created_at, updated_at
 		FROM post
 		WHERE account_id = $1
 		AND removed = false`
@@ -57,6 +58,7 @@ func (p *PostRepositoryStruct) FindPostsByAccountID(id *string) ([]interface{}, 
 	for rows.Next() {
 		err = rows.Scan(
 			&post.ID,
+			&post.AccountID,
 			&post.Content,
 			&post.CreatedAt,
 			&post.UpdatedAt,
@@ -73,16 +75,17 @@ func (p *PostRepositoryStruct) FindPostsByAccountID(id *string) ([]interface{}, 
 	return list, nil
 }
 
-func (p *PostRepositoryStruct) UpdatePostDataByID(id *string, content string) error {
+func (p *PostRepositoryStruct) UpdatePostDataByID(postID, accountID, content *string) error {
 	sqlStatement := `
 		UPDATE post 
 		SET content = $1, updated_at = $2
 		WHERE id = $3
+		AND account_id = $4  
 		AND removed = false`
 
 	updateTime := time.Now().UTC().Format("2006-01-02")
 
-	_, err := p.Db.Exec(sqlStatement, content, updateTime, id)
+	_, err := p.Db.Exec(sqlStatement, content, updateTime, postID, accountID)
 	if err != nil {
 		return err
 	}
@@ -92,7 +95,7 @@ func (p *PostRepositoryStruct) UpdatePostDataByID(id *string, content string) er
 
 func (p *PostRepositoryStruct) FindPostByID(id *string) (*response.PostResponse, error) {
 	sqlStatement := `
-		SELECT id, content, created_at, updated_at
+		SELECT id, account_id, content, created_at, updated_at
 		FROM post
 		WHERE id = $1
 		AND removed = false`
@@ -106,6 +109,7 @@ func (p *PostRepositoryStruct) FindPostByID(id *string) (*response.PostResponse,
 	var post response.PostResponse
 	err = rows.Scan(
 		&post.ID,
+		&post.AccountID,
 		&post.Content,
 		&post.CreatedAt,
 		&post.UpdatedAt,
@@ -132,16 +136,33 @@ func (p *PostRepositoryStruct) ExistsPostByID(id *string) (*bool, error) {
 	return &next, nil
 }
 
-func (p *PostRepositoryStruct) RemovePostByID(id *string) error {
+func (p *PostRepositoryStruct) RemovePostByID(postID, accountID *string) error {
 	sqlStatement := `
 		UPDATE post 
 		SET removed = true
-		WHERE id = $1`
+		WHERE id = $1
+		AND account_id = $2`
 
-	_, err := p.Db.Exec(sqlStatement, id)
+	_, err := p.Db.Exec(sqlStatement, postID, accountID)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (p *PostRepositoryStruct) ExistsPostByPostIDAndAccountID(postID, accountID *string) (*bool, error) {
+	sqlStatement := `
+		SELECT id
+		FROM post
+		WHERE id = $1
+		AND account_id = $2
+		AND removed = false`
+	rows, err := p.Db.Query(sqlStatement, postID, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	next := rows.Next()
+	return &next, nil
 }

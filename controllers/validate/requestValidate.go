@@ -72,3 +72,18 @@ func RequestCommentValidate(err error) []string {
 
 	return errors
 }
+
+func RequestInteractionValidate(err error) []string {
+	var errors []string
+	for _, err := range err.(validator.ValidationErrors) {
+
+		if err.Namespace() == "Interaction.Type" && (err.Tag() == "gte" || err.Tag() == "lte") {
+			errors = append(errors, "Incorrect type, insert like or dislike")
+		}
+		if err.Namespace() == "Interaction.ID" {
+			errors = append(errors, "Add ID")
+		}
+	}
+
+	return errors
+}

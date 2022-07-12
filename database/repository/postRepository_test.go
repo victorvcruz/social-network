@@ -80,13 +80,14 @@ func TestPostRepositoryStruct_UpdatePostDataByID(t *testing.T) {
 		UPDATE post 
 		SET content = $1, updated_at = $2
 		WHERE id = $3
+		AND account_id = $4  
 		AND removed = false`
 
 	prep := mock.ExpectPrepare(query)
 
 	prep.ExpectExec().WithArgs(p.Content, p.UpdatedAt, p.ID).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err := repo.UpdatePostDataByID(&p.ID, p.Content)
+	err := repo.UpdatePostDataByID(&p.ID, &p.AccountID, &p.Content)
 	assert.Error(t, err)
 }
 
@@ -150,12 +151,38 @@ func TestPostRepositoryStruct_RemovePostByID(t *testing.T) {
 	query := `
 		UPDATE post 
 		SET removed = true
-		WHERE id = $1`
+		WHERE id = $1
+		AND account_id = $2`
 
 	prep := mock.ExpectPrepare(query)
 
 	prep.ExpectExec().WithArgs(p.ID).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err := repo.RemovePostByID(&p.ID)
+	err := repo.RemovePostByID(&p.ID, &p.AccountID)
+	assert.Error(t, err)
+}
+
+func TestPostRepositoryStruct_ExistsPostByPostIDAndAccountID(t *testing.T) {
+	db, mock := NewMock()
+	repo := PostRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT id
+		FROM post
+		WHERE id = $1
+		AND account_id = $2
+		AND removed = false`
+
+	rows := sqlmock.NewRows([]string{"id"}).
+		AddRow(p.ID)
+
+	mock.ExpectQuery(query).WithArgs(p.ID).WillReturnRows(rows)
+
+	exist, err := repo.ExistsPostByPostIDAndAccountID(&p.ID, &p.AccountID)
+	assert.Empty(t, exist)
 	assert.Error(t, err)
 }

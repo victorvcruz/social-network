@@ -9,9 +9,9 @@ import (
 
 type CommentsController interface {
 	InsertComment(comment *entities.Comment) error
-	FindCommentsByAccountID(accountID, postID, commentID *string) ([]interface{}, error)
+	FindCommentsByAccountID(accountID, idToGet, postID, commentID *string) ([]interface{}, error)
 	UpdateCommentDataByID(comment *entities.Comment) (*response.CommentResponse, error)
-	RemoveCommentByID(comment *entities.Comment, accountID *string) (*response.CommentResponse, error)
+	RemoveCommentByID(comment *entities.Comment) (*response.CommentResponse, error)
 }
 
 type CommentsControllerStruct struct {
@@ -38,8 +38,8 @@ func (c *CommentsControllerStruct) InsertComment(comment *entities.Comment) erro
 		return &errors.NotFoundAccountIDError{}
 	}
 
-	if comment.CommentID != "" {
-		existID, err = c.repositoryComment.ExistsCommentByID(&comment.CommentID)
+	if comment.CommentID.String != "" {
+		existID, err = c.repositoryComment.ExistsCommentByID(&comment.CommentID.String)
 		if err != nil {
 			return err
 		}
@@ -56,7 +56,7 @@ func (c *CommentsControllerStruct) InsertComment(comment *entities.Comment) erro
 	return nil
 }
 
-func (c *CommentsControllerStruct) FindCommentsByAccountID(accountID, postID, commentID *string) ([]interface{}, error) {
+func (c *CommentsControllerStruct) FindCommentsByAccountID(accountID, idToGet, postID, commentID *string) ([]interface{}, error) {
 
 	existID, err := c.repositoryAccount.ExistsAccountByID(accountID)
 	if err != nil {
@@ -64,6 +64,17 @@ func (c *CommentsControllerStruct) FindCommentsByAccountID(accountID, postID, co
 	}
 	if !*existID {
 		return nil, &errors.NotFoundAccountIDError{}
+	}
+
+	if *idToGet != "" {
+		existID, err := c.repositoryAccount.ExistsAccountByID(idToGet)
+		if err != nil {
+			return nil, err
+		}
+		if !*existID {
+			return nil, &errors.NotFoundAccountIDError{}
+		}
+		accountID = idToGet
 	}
 
 	if *postID != "" {
@@ -91,17 +102,25 @@ func (c *CommentsControllerStruct) FindCommentsByAccountID(accountID, postID, co
 
 func (c *CommentsControllerStruct) UpdateCommentDataByID(comment *entities.Comment) (*response.CommentResponse, error) {
 
-	existID, err := c.repositoryAccount.ExistsAccountByID(&comment.AccountID)
+	exist, err := c.repositoryComment.ExistsCommentByID(&comment.ID)
 	if err != nil {
 		return nil, err
 	}
-	if !*existID {
-		return nil, &errors.NotFoundAccountIDError{}
+	if !*exist {
+		return nil, &errors.NotFoundCommentIDError{}
 	}
 
-	err = c.repositoryComment.UpdateCommentDataByID(&comment.ID, comment.Content)
+	exist, err = c.repositoryComment.ExistsCommentByCommentIDAndAccountID(&comment.ID, &comment.AccountID)
 	if err != nil {
-		return nil, &errors.NotFoundCommentIDError{}
+		return nil, err
+	}
+	if !*exist {
+		return nil, &errors.UnauthorizedAccountIDError{}
+	}
+
+	err = c.repositoryComment.UpdateCommentDataByID(&comment.ID, &comment.AccountID, &comment.Content)
+	if err != nil {
+		return nil, err
 	}
 
 	postUpdated, err := c.repositoryComment.FindCommentByID(&comment.ID)
@@ -109,29 +128,28 @@ func (c *CommentsControllerStruct) UpdateCommentDataByID(comment *entities.Comme
 		return nil, &errors.NotFoundCommentIDError{}
 	}
 
-	return postUpdated, nil
+	return postUpdated.ToResponse(), nil
 }
 
-func (p CommentsControllerStruct) RemoveCommentByID(comment *entities.Comment, accountID *string) (*response.CommentResponse, error) {
-
-	existID, err := p.repositoryAccount.ExistsAccountByID(accountID)
-
-	if err != nil {
-		return nil, err
-	}
-	if !*existID {
-		return nil, &errors.NotFoundAccountIDError{}
-	}
+func (p CommentsControllerStruct) RemoveCommentByID(comment *entities.Comment) (*response.CommentResponse, error) {
 
 	commentToRemoved, err := p.repositoryComment.FindCommentByID(&comment.ID)
 	if err != nil {
 		return nil, &errors.NotFoundCommentIDError{}
 	}
 
-	err = p.repositoryComment.RemoveCommentByID(&comment.ID)
+	existID, err := p.repositoryComment.ExistsCommentByCommentIDAndAccountID(&comment.ID, &comment.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	if !*existID {
+		return nil, &errors.UnauthorizedAccountIDError{}
+	}
+
+	err = p.repositoryComment.RemoveCommentByID(&comment.ID, &comment.AccountID)
 	if err != nil {
 		return nil, err
 	}
 
-	return commentToRemoved, nil
+	return commentToRemoved.ToResponse(), nil
 }
