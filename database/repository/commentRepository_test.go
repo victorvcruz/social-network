@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"social_network_project/entities"
+	"social_network_project/entities/response"
 	"testing"
 	"time"
 )
@@ -206,5 +207,29 @@ func TestCommentRepositoryStruct_ExistsCommentByCommentIDAndAccountID(t *testing
 
 	exist, err := repo.ExistsCommentByCommentIDAndAccountID(&c.ID, &c.AccountID)
 	assert.Empty(t, exist)
+	assert.Error(t, err)
+}
+
+func TestCommentRepositoryStruct_CountInteractionsForComment(t *testing.T) {
+	db, mock := NewMock()
+	repo := CommentRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT count(type) 
+		FROM interaction
+		WHERE comment_id = $1
+		AND type = $2`
+
+	rows := sqlmock.NewRows([]string{"comment_id", "type"}).
+		AddRow(i.CommentID, i.Type)
+
+	mock.ExpectQuery(query).WithArgs(i.CommentID).WillReturnRows(rows)
+
+	id, err := repo.CountInteractionsForComment(&i.CommentID.String, response.INTERACTION_TYPE_LIKED.EnumIndex())
+	assert.Empty(t, id)
 	assert.Error(t, err)
 }

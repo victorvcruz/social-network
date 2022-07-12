@@ -47,6 +47,23 @@ func (i InteractionsControllerStruct) InsertInteraction(interaction *entities.In
 		if !*existID {
 			return &errors.NotFoundCommentIDError{}
 		}
+		existID, err = i.repositoryInteraction.ExistsInteractionByCommentIDAndAccountID(&interaction.CommentID.String, &interaction.AccountID)
+		if err != nil {
+			return err
+		}
+		if *existID {
+			return &errors.ConflictAlreadyWriteError{}
+		}
+	}
+
+	if interaction.PostID.String != "" {
+		existID, err = i.repositoryInteraction.ExistsInteractionByPostIDAndAccountID(&interaction.PostID.String, &interaction.AccountID)
+		if err != nil {
+			return err
+		}
+		if *existID {
+			return &errors.ConflictAlreadyWriteError{}
+		}
 	}
 
 	err = i.repositoryInteraction.InsertInteraction(interaction)

@@ -15,6 +15,8 @@ type InteractionRepository interface {
 	ExistsInteractionByInteractionIDAndAccountID(interactionID, accountID *string) (*bool, error)
 	FindInteractionByID(id *string) (*entities.Interaction, error)
 	RemoveInteractionByID(interactionID, accountID *string) error
+	ExistsInteractionByPostIDAndAccountID(postID, accountID *string) (*bool, error)
+	ExistsInteractionByCommentIDAndAccountID(commentID, accountID *string) (*bool, error)
 }
 
 type InteractionRepositoryStruct struct {
@@ -30,10 +32,10 @@ func (p *InteractionRepositoryStruct) InsertInteraction(interaction *entities.In
 		INSERT INTO interaction (id, account_id, post_id, comment_id, type, created_at, updated_at, removed)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
-	_, err := p.Db.Exec(sqlStatement, interaction.ID, interaction.AccountID, interaction.PostID, interaction.CommentID,
+	row := p.Db.QueryRow(sqlStatement, interaction.ID, interaction.AccountID, interaction.PostID, interaction.CommentID,
 		interaction.Type, interaction.CreatedAt, interaction.UpdatedAt, interaction.Removed)
-	if err != nil {
-		return err
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil
@@ -64,9 +66,9 @@ func (p *InteractionRepositoryStruct) UpdateInteractonDataByID(interactionID, ac
 
 	updateTime := time.Now().UTC().Format("2006-01-02")
 
-	_, err := p.Db.Exec(sqlStatement, typeValue, updateTime, interactionID, accountID)
-	if err != nil {
-		return err
+	row := p.Db.QueryRow(sqlStatement, typeValue, updateTime, interactionID, accountID)
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil
@@ -126,10 +128,42 @@ func (p *InteractionRepositoryStruct) RemoveInteractionByID(interactionID, accou
 		WHERE id = $1
 		AND account_id = $2`
 
-	_, err := p.Db.Exec(sqlStatement, interactionID, accountID)
-	if err != nil {
-		return err
+	row := p.Db.QueryRow(sqlStatement, interactionID, accountID)
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil
+}
+
+func (p *InteractionRepositoryStruct) ExistsInteractionByPostIDAndAccountID(postID, accountID *string) (*bool, error) {
+	sqlStatement := `
+		SELECT id
+		FROM interaction
+		WHERE post_id = $1
+		AND account_id = $2
+		AND removed = false`
+	rows, err := p.Db.Query(sqlStatement, postID, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	next := rows.Next()
+	return &next, nil
+}
+
+func (p *InteractionRepositoryStruct) ExistsInteractionByCommentIDAndAccountID(commentID, accountID *string) (*bool, error) {
+	sqlStatement := `
+		SELECT id
+		FROM interaction
+		WHERE comment_id = $1
+		AND account_id = $2
+		AND removed = false`
+	rows, err := p.Db.Query(sqlStatement, commentID, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	next := rows.Next()
+	return &next, nil
 }

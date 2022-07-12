@@ -33,10 +33,10 @@ func (p *AccountRepositoryStruct) InsertAccount(account *entities.Account) error
 		INSERT INTO account (id, username, name, description, email, password, created_at, updated_at, deleted)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	_, err := p.Db.Exec(sqlStatement, account.ID, account.Username, account.Name, account.Description,
+	row := p.Db.QueryRow(sqlStatement, account.ID, account.Username, account.Name, account.Description,
 		account.Email, account.Password, account.CreatedAt, account.UpdatedAt, account.Deleted)
-	if err != nil {
-		return err
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil
@@ -73,7 +73,10 @@ func (p *AccountRepositoryStruct) FindAccountIDbyEmail(email string) (*string, e
 
 	rows.Next()
 	var id *string
-	_ = rows.Scan(&id)
+	err = rows.Scan(&id)
+	if err != nil {
+		return nil, err
+	}
 
 	return id, nil
 }
@@ -115,9 +118,9 @@ func (p *AccountRepositoryStruct) FindAccountByID(id *string) (*entities.Account
 func (p *AccountRepositoryStruct) ChangeAccountDataByID(id *string, mapBody map[string]interface{}) error {
 	sqlStatement := dinamicQueryChangeAccountDataByID(mapBody)
 
-	_, err := p.Db.Exec(sqlStatement, id)
-	if err != nil {
-		return err
+	row := p.Db.QueryRow(sqlStatement, id)
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil
@@ -144,9 +147,9 @@ func (p *AccountRepositoryStruct) DeleteAccountByID(id *string) error {
 		WHERE id = $1
 		AND deleted = false`
 
-	_, err := p.Db.Exec(sqlStatement, id)
-	if err != nil {
-		return err
+	row := p.Db.QueryRow(sqlStatement, id)
+	if row.Err() != nil {
+		return row.Err()
 	}
 
 	return nil

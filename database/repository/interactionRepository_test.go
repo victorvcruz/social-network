@@ -83,7 +83,7 @@ func TestCommentRepositoryStruct_UpdateInteractonDataByID(t *testing.T) {
 
 	prep := mock.ExpectPrepare(query)
 
-	prep.ExpectExec().WithArgs(c.Content, c.UpdatedAt, c.ID).WillReturnResult(sqlmock.NewResult(0, 1))
+	prep.ExpectExec().WithArgs(i.Type, i.UpdatedAt, i.ID).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err := repo.UpdateInteractonDataByID(&i.ID, &i.AccountID, &i.Type)
 	assert.Error(t, err)
@@ -105,9 +105,9 @@ func TestInteractionRepositoryStruct_ExistsInteractionByInteractionIDAndAccountI
 		AND removed = false`
 
 	rows := sqlmock.NewRows([]string{"id"}).
-		AddRow(c.ID)
+		AddRow(i.ID)
 
-	mock.ExpectQuery(query).WithArgs(c.ID).WillReturnRows(rows)
+	mock.ExpectQuery(query).WithArgs(i.ID).WillReturnRows(rows)
 
 	exist, err := repo.ExistsInteractionByInteractionIDAndAccountID(&i.ID, &i.AccountID)
 	assert.Empty(t, exist)
@@ -131,9 +131,9 @@ func TestInteractionRepositoryStruct_FindInteractionsByID(t *testing.T) {
 	rows := sqlmock.NewRows([]string{"id", "account_id", "type", "created_at", "updated_at"}).
 		AddRow(i.ID, i.AccountID, i.Type, i.CreatedAt, i.UpdatedAt)
 
-	mock.ExpectQuery(query).WithArgs(p.ID).WillReturnRows(rows)
+	mock.ExpectQuery(query).WithArgs(i.ID).WillReturnRows(rows)
 
-	account, err := repo.FindInteractionByID(&p.ID)
+	account, err := repo.FindInteractionByID(&i.ID)
 	assert.Empty(t, account)
 	assert.Error(t, err)
 }
@@ -155,8 +155,58 @@ func TestInteractionRepositoryStruct_RemoveInteractionByID(t *testing.T) {
 
 	prep := mock.ExpectPrepare(query)
 
-	prep.ExpectExec().WithArgs(c.ID).WillReturnResult(sqlmock.NewResult(0, 1))
+	prep.ExpectExec().WithArgs(i.ID).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err := repo.RemoveInteractionByID(&c.ID, &c.AccountID)
+	err := repo.RemoveInteractionByID(&i.ID, &i.AccountID)
+	assert.Error(t, err)
+}
+
+func TestInteractionRepositoryStruct_ExistsInteractionByPostIDAndAccountID(t *testing.T) {
+	db, mock := NewMock()
+	repo := InteractionRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT id
+		FROM interaction
+		WHERE post_id = $1
+		AND account_id = $2
+		AND removed = false`
+
+	rows := sqlmock.NewRows([]string{"id"}).
+		AddRow(i.ID)
+
+	mock.ExpectQuery(query).WithArgs(i.PostID).WillReturnRows(rows)
+
+	exist, err := repo.ExistsInteractionByInteractionIDAndAccountID(&i.PostID.String, &i.AccountID)
+	assert.Empty(t, exist)
+	assert.Error(t, err)
+}
+
+func TestInteractionRepositoryStruct_ExistsInteractionByCommentIDAndAccountID(t *testing.T) {
+	db, mock := NewMock()
+	repo := InteractionRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT id
+		FROM interaction
+		WHERE comment_id = $1
+		AND account_id = $2
+		AND removed = false`
+
+	rows := sqlmock.NewRows([]string{"id"}).
+		AddRow(i.ID)
+
+	mock.ExpectQuery(query).WithArgs(i.CommentID).WillReturnRows(rows)
+
+	exist, err := repo.ExistsInteractionByCommentIDAndAccountID(&i.CommentID.String, &i.AccountID)
+	assert.Empty(t, exist)
 	assert.Error(t, err)
 }
