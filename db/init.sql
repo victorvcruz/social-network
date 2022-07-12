@@ -45,11 +45,11 @@ CREATE TABLE comment (
         FOREIGN KEY (post_id) REFERENCES post (id)
 );
 
-CREATE TABLE interactions (
+CREATE TABLE interaction (
 	id VARCHAR UNIQUE NOT NULL,
 	account_id VARCHAR NOT NULL,
-	post_id VARCHAR NOT NULL,
-	comment_id VARCHAR,
+	post_id VARCHAR NULL,
+	comment_id VARCHAR NULL,
 	type VARCHAR NOT NULL,
 	created_at TIMESTAMP NOT NULL,
         updated_at TIMESTAMP NOT NULL,

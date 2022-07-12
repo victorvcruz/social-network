@@ -13,7 +13,7 @@ var c = &entities.Comment{
 	ID:        uuid.New().String(),
 	AccountID: "f981d822-7efb-4e66-aa84-99f517820ca3",
 	PostID:    "0d0bb472-225c-4c8a-9935-a21045c80d87",
-	CommentID: "8b607c43-0190-4c8c-9746-4b527d1d2c55",
+	CommentID: entities.NewNullString("8b607c43-0190-4c8c-9746-4b527d1d2c55"),
 	Content:   "Lorem ipsum dolor sit amet, consectetuer adipiscing elit.",
 	CreatedAt: time.Now().UTC().Format("2006-01-02"),
 	UpdatedAt: time.Now().UTC().Format("2006-01-02"),
@@ -86,7 +86,7 @@ func TestCommentRepositoryStruct_FindCommentsByAccountID(t *testing.T) {
 
 	mock.ExpectQuery(query).WithArgs(c.ID).WillReturnRows(rows)
 
-	account, err := repo.FindCommentsByAccountID(&c.AccountID, &c.PostID, &c.CommentID)
+	account, err := repo.FindCommentsByAccountID(&c.AccountID, &c.PostID, &c.CommentID.String)
 	assert.Empty(t, account)
 	assert.Error(t, err)
 }
@@ -116,7 +116,7 @@ func TestNewComentRepository_dinamicQueryFindCommentsByAccountID(t *testing.T) {
 func TestCommentRepositoryStruct_UpdateCommentDataByID(t *testing.T) {
 
 	db, mock := NewMock()
-	repo := PostRepositoryStruct{db}
+	repo := CommentRepositoryStruct{db}
 
 	defer func() {
 		db.Close()
@@ -126,13 +126,14 @@ func TestCommentRepositoryStruct_UpdateCommentDataByID(t *testing.T) {
 		UPDATE comment 
 		SET content = $1, updated_at = $2
 		WHERE id = $3
+		AND account_id = $2
 		AND removed = false`
 
 	prep := mock.ExpectPrepare(query)
 
 	prep.ExpectExec().WithArgs(c.Content, c.UpdatedAt, c.ID).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err := repo.UpdatePostDataByID(&c.ID, c.Content)
+	err := repo.UpdateCommentDataByID(&c.ID, &c.AccountID, &c.Content)
 	assert.Error(t, err)
 }
 
@@ -172,12 +173,38 @@ func TestCommentRepositoryStruct_RemoveCommentByID(t *testing.T) {
 	query := `
 		UPDATE comment 
 		SET removed = true
-		WHERE id = $1`
+		WHERE id = $1
+		AND account_id = $2`
 
 	prep := mock.ExpectPrepare(query)
 
-	prep.ExpectExec().WithArgs(p.ID).WillReturnResult(sqlmock.NewResult(0, 1))
+	prep.ExpectExec().WithArgs(c.ID).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err := repo.RemoveCommentByID(&p.ID)
+	err := repo.RemoveCommentByID(&c.ID, &c.AccountID)
+	assert.Error(t, err)
+}
+
+func TestCommentRepositoryStruct_ExistsCommentByCommentIDAndAccountID(t *testing.T) {
+	db, mock := NewMock()
+	repo := CommentRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT id
+		FROM comment
+		WHERE id = $1
+		AND account_id = $2
+		AND removed = false`
+
+	rows := sqlmock.NewRows([]string{"id"}).
+		AddRow(c.ID)
+
+	mock.ExpectQuery(query).WithArgs(c.ID).WillReturnRows(rows)
+
+	exist, err := repo.ExistsCommentByCommentIDAndAccountID(&c.ID, &c.AccountID)
+	assert.Empty(t, exist)
 	assert.Error(t, err)
 }

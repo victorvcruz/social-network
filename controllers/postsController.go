@@ -9,9 +9,9 @@ import (
 
 type PostsController interface {
 	InsertPost(post *entities.Post) error
-	FindPostsByAccountID(id *string) ([]interface{}, error)
+	FindPostsByAccountID(accountID, idToGet *string) ([]interface{}, error)
 	UpdatePostDataByID(post *entities.Post) (*response.PostResponse, error)
-	RemovePostByID(post *entities.Post, accountID *string) (*response.PostResponse, error)
+	RemovePostByID(post *entities.Post) (*response.PostResponse, error)
 }
 
 type PostsControllerStruct struct {
@@ -36,9 +36,9 @@ func (p PostsControllerStruct) InsertPost(post *entities.Post) error {
 	return nil
 }
 
-func (p PostsControllerStruct) FindPostsByAccountID(id *string) ([]interface{}, error) {
+func (p PostsControllerStruct) FindPostsByAccountID(accountID, idToGet *string) ([]interface{}, error) {
 
-	existID, err := p.repositoryAccount.ExistsAccountByID(id)
+	existID, err := p.repositoryAccount.ExistsAccountByID(accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -46,22 +46,42 @@ func (p PostsControllerStruct) FindPostsByAccountID(id *string) ([]interface{}, 
 		return nil, &errors.NotFoundAccountIDError{}
 	}
 
-	return p.repositoryPost.FindPostsByAccountID(id)
+	if *idToGet != "" {
+		existID, err := p.repositoryAccount.ExistsAccountByID(idToGet)
+		if err != nil {
+			return nil, err
+		}
+		if !*existID {
+			return nil, &errors.NotFoundAccountIDError{}
+		}
+
+		return p.repositoryPost.FindPostsByAccountID(idToGet)
+	}
+
+	return p.repositoryPost.FindPostsByAccountID(accountID)
 }
 
 func (p PostsControllerStruct) UpdatePostDataByID(post *entities.Post) (*response.PostResponse, error) {
 
-	existID, err := p.repositoryAccount.ExistsAccountByID(&post.AccountID)
+	exist, err := p.repositoryPost.ExistsPostByID(&post.ID)
 	if err != nil {
 		return nil, err
 	}
-	if !*existID {
-		return nil, &errors.NotFoundAccountIDError{}
+	if !*exist {
+		return nil, &errors.NotFoundPostIDError{}
 	}
 
-	err = p.repositoryPost.UpdatePostDataByID(&post.ID, post.Content)
+	exist, err = p.repositoryPost.ExistsPostByPostIDAndAccountID(&post.ID, &post.AccountID)
 	if err != nil {
-		return nil, &errors.NotFoundPostIDError{}
+		return nil, err
+	}
+	if !*exist {
+		return nil, &errors.UnauthorizedAccountIDError{}
+	}
+
+	err = p.repositoryPost.UpdatePostDataByID(&post.ID, &post.AccountID, &post.Content)
+	if err != nil {
+		return nil, err
 	}
 
 	postUpdated, err := p.repositoryPost.FindPostByID(&post.ID)
@@ -72,23 +92,22 @@ func (p PostsControllerStruct) UpdatePostDataByID(post *entities.Post) (*respons
 	return postUpdated, nil
 }
 
-func (p PostsControllerStruct) RemovePostByID(post *entities.Post, accountID *string) (*response.PostResponse, error) {
-
-	existID, err := p.repositoryAccount.ExistsAccountByID(accountID)
-
-	if err != nil {
-		return nil, err
-	}
-	if !*existID {
-		return nil, &errors.NotFoundAccountIDError{}
-	}
+func (p PostsControllerStruct) RemovePostByID(post *entities.Post) (*response.PostResponse, error) {
 
 	postToRemoved, err := p.repositoryPost.FindPostByID(&post.ID)
 	if err != nil {
 		return nil, &errors.NotFoundPostIDError{}
 	}
 
-	err = p.repositoryPost.RemovePostByID(&post.ID)
+	exist, err := p.repositoryPost.ExistsPostByPostIDAndAccountID(&post.ID, &post.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	if !*exist {
+		return nil, &errors.UnauthorizedAccountIDError{}
+	}
+
+	err = p.repositoryPost.RemovePostByID(&post.ID, &post.AccountID)
 	if err != nil {
 		return nil, err
 	}

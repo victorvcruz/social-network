@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -14,14 +15,14 @@ import (
 )
 
 type CommentsAPI struct {
-	CommentController controllers.CommentsController
-	Validate          *validator.Validate
+	Controller controllers.CommentsController
+	Validate   *validator.Validate
 }
 
 func RegisterCommentsHandlers(handler *gin.Engine, commentsController controllers.CommentsController) {
 	ac := &CommentsAPI{
-		CommentController: commentsController,
-		Validate:          validator.New(),
+		Controller: commentsController,
+		Validate:   validator.New(),
 	}
 
 	handler.POST("/comments/:post", ac.CreateComment)
@@ -46,7 +47,7 @@ func (a *CommentsAPI) CreateComment(c *gin.Context) {
 		log.Println(err)
 	}
 
-	comment := CreateCommentStruct(mapBody, accountID, &postID, &commentID)
+	comment := CreateCommentStruct(mapBody, accountID, &postID, entities.NewNullString(commentID))
 
 	mapper := make(map[string]interface{})
 	err = a.Validate.Struct(comment)
@@ -56,7 +57,7 @@ func (a *CommentsAPI) CreateComment(c *gin.Context) {
 		return
 	}
 
-	err = a.CommentController.InsertComment(comment)
+	err = a.Controller.InsertComment(comment)
 	if err != nil {
 		switch e := err.(type) {
 		case *errors.NotFoundAccountIDError:
@@ -95,10 +96,11 @@ func (a *CommentsAPI) GetComment(c *gin.Context) {
 		return
 	}
 
+	idToGet := c.DefaultQuery("account_id", "")
 	postID := c.DefaultQuery("post_id", "")
 	commentID := c.DefaultQuery("comment_id", "")
 
-	comments, err := a.CommentController.FindCommentsByAccountID(accountID, &postID, &commentID)
+	comments, err := a.Controller.FindCommentsByAccountID(accountID, &idToGet, &postID, &commentID)
 	if err != nil {
 		switch e := err.(type) {
 		case *errors.NotFoundAccountIDError:
@@ -144,7 +146,7 @@ func (a *CommentsAPI) UpdateComment(c *gin.Context) {
 	postID := ""
 	commentID := ""
 
-	comment := CreateCommentStruct(mapBody, accountID, &postID, &commentID)
+	comment := CreateCommentStruct(mapBody, accountID, &postID, entities.NewNullString(commentID))
 	comment.ID = stringNullable(mapBody["id"])
 
 	mapper := make(map[string]interface{})
@@ -155,10 +157,10 @@ func (a *CommentsAPI) UpdateComment(c *gin.Context) {
 		return
 	}
 
-	commentUpdated, err := a.CommentController.UpdateCommentDataByID(comment)
+	commentUpdated, err := a.Controller.UpdateCommentDataByID(comment)
 	if err != nil {
 		switch e := err.(type) {
-		case *errors.NotFoundAccountIDError:
+		case *errors.UnauthorizedAccountIDError:
 			log.Println(e)
 			c.JSON(http.StatusNotFound, gin.H{
 				"Message": err.Error(),
@@ -194,7 +196,7 @@ func (a *CommentsAPI) DeleteComment(c *gin.Context) {
 	}
 	postID := ""
 	commentID := ""
-	comment := CreateCommentStruct(mapBody, accountID, &postID, &commentID)
+	comment := CreateCommentStruct(mapBody, accountID, &postID, entities.NewNullString(commentID))
 	comment.ID = stringNullable(mapBody["id"])
 	comment.Content = "--"
 
@@ -206,10 +208,10 @@ func (a *CommentsAPI) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	commentToRemoved, err := a.CommentController.RemoveCommentByID(comment, accountID)
+	commentToRemoved, err := a.Controller.RemoveCommentByID(comment)
 	if err != nil {
 		switch e := err.(type) {
-		case *errors.NotFoundAccountIDError:
+		case *errors.UnauthorizedAccountIDError:
 			log.Println(e)
 			c.JSON(http.StatusNotFound, gin.H{
 				"Message": err.Error(),
@@ -231,13 +233,13 @@ func (a *CommentsAPI) DeleteComment(c *gin.Context) {
 
 }
 
-func CreateCommentStruct(mapBody map[string]interface{}, accountID, postID, commentID *string) *entities.Comment {
+func CreateCommentStruct(mapBody map[string]interface{}, accountID, postID *string, commentID sql.NullString) *entities.Comment {
 
 	return &entities.Comment{
 		ID:        uuid.New().String(),
 		AccountID: *accountID,
 		PostID:    *postID,
-		CommentID: *commentID,
+		CommentID: commentID,
 		Content:   stringNullable(mapBody["content"]),
 		CreatedAt: time.Now().UTC().Format("2006-01-02"),
 		UpdatedAt: time.Now().UTC().Format("2006-01-02"),

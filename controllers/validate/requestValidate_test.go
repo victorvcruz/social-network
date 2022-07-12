@@ -84,7 +84,7 @@ func TestRequestCommentValidate(t *testing.T) {
 		ID:        "",
 		AccountID: "f981d822-7efb-4e66-aa84-99f517820ca3",
 		PostID:    "0d0bb472-225c-4c8a-9935-a21045c80d87",
-		CommentID: "8b607c43-0190-4c8c-9746-4b527d1d2c55",
+		CommentID: entities.NewNullString("8b607c43-0190-4c8c-9746-4b527d1d2c55"),
 		Content:   "",
 		CreatedAt: time.Now().UTC().Format("2006-01-02"),
 		UpdatedAt: time.Now().UTC().Format("2006-01-02"),
@@ -96,6 +96,30 @@ func TestRequestCommentValidate(t *testing.T) {
 	expectedListString1 = append(expectedListString1, "Add ID", "Add content")
 
 	listString1 := RequestCommentValidate(err)
+
+	assert.Equal(t, expectedListString1, listString1)
+
+}
+
+func TestRequestInteractionValidate(t *testing.T) {
+	validate := validator.New()
+
+	var interaction = &entities.Interaction{
+		ID:        "",
+		AccountID: "f981d822-7efb-4e66-aa84-99f517820ca3",
+		PostID:    entities.NewNullString("0d0bb472-225c-4c8a-9935-a21045c80d87"),
+		CommentID: entities.NewNullString("8b607c43-0190-4c8c-9746-4b527d1d2c55"),
+		Type:      400,
+		CreatedAt: time.Now().UTC().Format("2006-01-02"),
+		UpdatedAt: time.Now().UTC().Format("2006-01-02"),
+		Removed:   false,
+	}
+
+	err := validate.Struct(interaction)
+	var expectedListString1 []string
+	expectedListString1 = append(expectedListString1, "Add ID", "Incorrect type, insert like or dislike")
+
+	listString1 := RequestInteractionValidate(err)
 
 	assert.Equal(t, expectedListString1, listString1)
 
