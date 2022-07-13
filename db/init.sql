@@ -16,6 +16,7 @@ CREATE UNIQUE INDEX account_email_index ON account(email, deleted) WHERE deleted
 CREATE TABLE account_follow (
 	account_id VARCHAR NOT NULL,
 	account_id_followed VARCHAR NOT NULL,
+	unfollowed BOOLEAN NOT NULL,
 	FOREIGN KEY (account_id) REFERENCES account (id),
 	FOREIGN KEY (account_id_followed) REFERENCES account (id)
 );

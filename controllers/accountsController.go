@@ -18,6 +18,10 @@ type AccountsController interface {
 	FindAccountByID(id *string) (*entities.Account, error)
 	ChangeAccountDataByID(id *string, mapBody map[string]interface{}) error
 	DeleteAccountByID(id *string) (*entities.Account, error)
+	CreateFollow(accountID, accountToFollow *string) (*entities.Account, error)
+	FindAccountsFollowing(accountID *string) ([]interface{}, error)
+	FindAccountsFollowers(accountID *string) ([]interface{}, error)
+	DeleteFollow(accountID, accountToFollow *string) (*entities.Account, error)
 }
 
 type AccountsControllerStruct struct {
@@ -146,6 +150,79 @@ func (s *AccountsControllerStruct) DeleteAccountByID(id *string) (*entities.Acco
 	}
 
 	return account, nil
+}
+
+func (s *AccountsControllerStruct) CreateFollow(accountID, accountToFollow *string) (*entities.Account, error) {
+
+	accountFollow, err := s.repository.FindAccountByID(accountToFollow)
+	if err != nil {
+		return nil, &errors.NotFoundAccountIDError{}
+	}
+
+	exist, err := s.repository.ExistsAccountByID(accountID)
+	if err != nil {
+		return nil, err
+	}
+	if !*exist {
+		return nil, &errors.NotFoundAccountIDError{}
+	}
+
+	exist, err = s.repository.ExistsFollowByAccountIDAndAccountFollowedID(accountID, accountToFollow)
+	if err != nil {
+		return nil, err
+	}
+	if *exist {
+		return nil, &errors.ConflictAlreadyFollowError{}
+	}
+
+	err = s.repository.InsertAccountFollow(accountID, accountToFollow)
+	if err != nil {
+		return nil, &errors.NotFoundAccountIDError{}
+	}
+
+	return accountFollow, nil
+}
+
+func (s *AccountsControllerStruct) FindAccountsFollowing(accountID *string) ([]interface{}, error) {
+
+	listOfAccounts, err := s.repository.FindAccountFollowingByAccountID(accountID)
+	if err != nil {
+		return nil, &errors.NotFoundAccountIDError{}
+	}
+
+	return listOfAccounts, nil
+}
+
+func (s *AccountsControllerStruct) FindAccountsFollowers(accountID *string) ([]interface{}, error) {
+
+	listOfAccounts, err := s.repository.FindAccountFollowersByAccountID(accountID)
+	if err != nil {
+		return nil, &errors.NotFoundAccountIDError{}
+	}
+
+	return listOfAccounts, nil
+}
+
+func (s *AccountsControllerStruct) DeleteFollow(accountID, accountToFollow *string) (*entities.Account, error) {
+
+	accountFollow, err := s.repository.FindAccountByID(accountToFollow)
+	if err != nil {
+		return nil, &errors.NotFoundAccountIDError{}
+	}
+
+	exist, err := s.repository.ExistsFollowByAccountIDAndAccountFollowedID(accountID, accountToFollow)
+	if err != nil {
+		return nil, err
+	}
+	if !*exist {
+		return nil, &errors.UnauthorizedAccountIDError{}
+	}
+
+	err = s.repository.DeleteAccountFollow(accountID, accountToFollow)
+	if err != nil {
+		return nil, &errors.ConflictAlreadyUnfollowError{}
+	}
+	return accountFollow, nil
 }
 
 func CreateTokenByID(id string) (*response.Token, error) {

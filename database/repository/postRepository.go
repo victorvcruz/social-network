@@ -18,14 +18,16 @@ type PostRepository interface {
 	RemovePostByID(postID, accountID *string) error
 	ExistsPostByPostIDAndAccountID(postID, accountID *string) (*bool, error)
 	CountInteractionsForPost(postID *string, typeValue int) (*int, error)
+	FindPostByAccountFollowingByAccountID(accountID *string) ([]interface{}, error)
 }
 
 type PostRepositoryStruct struct {
-	Db *sql.DB
+	Account AccountRepositoryStruct
+	Db      *sql.DB
 }
 
 func NewPostRepository() PostRepository {
-	return &PostRepositoryStruct{postgresql.Db}
+	return &PostRepositoryStruct{AccountRepositoryStruct{postgresql.Db}, postgresql.Db}
 }
 
 func (p *PostRepositoryStruct) InsertPost(post *entities.Post) error {
@@ -200,4 +202,35 @@ func (p *PostRepositoryStruct) CountInteractionsForPost(postID *string, typeValu
 	}
 
 	return count, nil
+}
+
+func (p *PostRepositoryStruct) FindPostByAccountFollowingByAccountID(accountID *string) ([]interface{}, error) {
+	sqlStatement := `
+		SELECT account_id_followed
+		FROM account_follow
+		WHERE account_id = $1
+		AND unfollowed = false`
+
+	rows, err := p.Db.Query(sqlStatement, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	list := []interface{}{}
+	var id *string
+
+	for rows.Next() {
+		err = rows.Scan(&id)
+		if err != nil {
+			return nil, err
+		}
+		posts, err := p.FindPostsByAccountID(id)
+		if err != nil {
+			return nil, err
+		}
+
+		list = append(list, posts)
+	}
+
+	return list, nil
 }

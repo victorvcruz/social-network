@@ -1,45 +1,11 @@
 package handler
 
 import (
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"social_network_project/entities"
-	"social_network_project/entities/response"
 	"testing"
 	"time"
 )
-
-func TestAccounts_DecodeTokenAndReturnID(t *testing.T) {
-	idString := "6c08496b-b721-4e06-b0b7-1905524c9da2"
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":  idString,
-		"exp": time.Now().Add(time.Hour * 1).Unix(),
-	})
-
-	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_TOKEN_KEY")))
-	assert.Nil(t, err)
-
-	tokenStructExpected := response.Token{
-		Token: tokenString,
-	}
-
-	id, err := decodeTokenAndReturnID(tokenStructExpected.Token)
-	assert.Nil(t, err)
-
-	tokenDecodeExpected := jwt.MapClaims{}
-	_, err = jwt.ParseWithClaims(tokenStructExpected.Token, tokenDecodeExpected, func(token *jwt.Token) (interface{}, error) {
-		return []byte(os.Getenv("JWT_TOKEN_KEY")), nil
-	})
-	assert.Nil(t, err)
-
-	idExpected := tokenDecodeExpected["id"].(string)
-
-	idTest := *id
-
-	assert.Equal(t, idExpected, idTest)
-}
 
 func TestAccountsAPI_mergeAccountToUpdatedAccount(t *testing.T) {
 	var u = &entities.Account{

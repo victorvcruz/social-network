@@ -18,6 +18,11 @@ type AccountRepository interface {
 	ExistsAccountByID(id *string) (*bool, error)
 	ExistsAccountByUsername(username *string) (*bool, error)
 	ExistsAccountByEmail(email *string) (*bool, error)
+	InsertAccountFollow(accountID, accountFollow *string) error
+	FindAccountFollowingByAccountID(accountID *string) ([]interface{}, error)
+	FindAccountFollowersByAccountID(accountID *string) ([]interface{}, error)
+	ExistsFollowByAccountIDAndAccountFollowedID(accountID, accountToFollow *string) (*bool, error)
+	DeleteAccountFollow(accountID, accountFollow *string) error
 }
 
 type AccountRepositoryStruct struct {
@@ -192,6 +197,113 @@ func (p *AccountRepositoryStruct) ExistsAccountByEmail(email *string) (*bool, er
 		WHERE email = $1
 		AND deleted = false`
 	rows, err := p.Db.Query(sqlStatement, email)
+	if err != nil {
+		return nil, err
+	}
+
+	next := rows.Next()
+	return &next, nil
+}
+
+func (p *AccountRepositoryStruct) InsertAccountFollow(accountID, accountFollow *string) error {
+	sqlStatement := `
+		INSERT INTO account_follow (account_id, account_id_followed, unfollowed)
+		VALUES ($1, $2, false)`
+
+	row := p.Db.QueryRow(sqlStatement, accountID, accountFollow)
+	if row.Err() != nil {
+		return row.Err()
+	}
+
+	return nil
+}
+
+func (p *AccountRepositoryStruct) FindAccountFollowingByAccountID(accountID *string) ([]interface{}, error) {
+	sqlStatement := `
+		SELECT account_id_followed
+		FROM account_follow
+		WHERE account_id = $1
+		AND unfollowed = false`
+
+	rows, err := p.Db.Query(sqlStatement, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	list := []interface{}{}
+	var id *string
+
+	for rows.Next() {
+		err = rows.Scan(&id)
+		if err != nil {
+			return nil, err
+		}
+		account, err := p.FindAccountByID(id)
+		if err != nil {
+			return nil, err
+		}
+
+		list = append(list, account.ToResponse())
+	}
+
+	return list, nil
+}
+
+func (p *AccountRepositoryStruct) FindAccountFollowersByAccountID(accountID *string) ([]interface{}, error) {
+	sqlStatement := `
+		SELECT account_id
+		FROM account_follow
+		WHERE account_id_followed = $1
+		AND unfollowed = false`
+
+	rows, err := p.Db.Query(sqlStatement, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	list := []interface{}{}
+	var id *string
+
+	for rows.Next() {
+		err = rows.Scan(&id)
+		if err != nil {
+			return nil, err
+		}
+		account, err := p.FindAccountByID(id)
+		if err != nil {
+			return nil, err
+		}
+
+		list = append(list, account.ToResponse())
+	}
+
+	return list, nil
+}
+
+func (p *AccountRepositoryStruct) DeleteAccountFollow(accountID, accountFollow *string) error {
+	sqlStatement := `
+		UPDATE account_follow 
+		SET unfollowed = true 
+		WHERE account_id= $1
+		AND account_id_followed = $2
+		AND unfollowed = false`
+
+	row := p.Db.QueryRow(sqlStatement, accountID, accountFollow)
+	if row.Err() != nil {
+		return row.Err()
+	}
+
+	return nil
+}
+
+func (p *AccountRepositoryStruct) ExistsFollowByAccountIDAndAccountFollowedID(accountID, accountToFollow *string) (*bool, error) {
+	sqlStatement := `
+		SELECT account_id
+		FROM account_follow
+		WHERE account_id = $1
+		AND account_id_followed = $2
+		AND unfollowed = false`
+	rows, err := p.Db.Query(sqlStatement, accountID, accountToFollow)
 	if err != nil {
 		return nil, err
 	}

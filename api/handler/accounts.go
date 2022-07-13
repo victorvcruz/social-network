@@ -3,11 +3,9 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"log"
 	"net/http"
-	"os"
 	"social_network_project/controllers"
 	"social_network_project/controllers/errors"
 	"social_network_project/controllers/validate"
@@ -32,6 +30,11 @@ func RegisterAccountsHandlers(handler *gin.Engine, accountsController controller
 	handler.GET("/accounts", ac.GetAccount)
 	handler.PUT("/accounts", ac.UpdateAccount)
 	handler.DELETE("/accounts", ac.DeleteAccount)
+	handler.POST("/accounts/follows", ac.FollowAccount)
+	handler.GET("/accounts/following", ac.SearchFollowing)
+	handler.GET("/accounts/follower", ac.SearchFollowers)
+	handler.DELETE("/accounts/unfollow", ac.UnfollowAccount)
+
 }
 
 func (a *AccountsAPI) CreateAccount(c *gin.Context) {
@@ -113,7 +116,7 @@ func (a *AccountsAPI) CreateToken(c *gin.Context) {
 
 func (a *AccountsAPI) GetAccount(c *gin.Context) {
 
-	id, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	id, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -142,7 +145,7 @@ func (a *AccountsAPI) GetAccount(c *gin.Context) {
 
 func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 
-	id, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	id, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -207,7 +210,7 @@ func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 }
 
 func (a *AccountsAPI) DeleteAccount(c *gin.Context) {
-	id, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	id, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -233,18 +236,160 @@ func (a *AccountsAPI) DeleteAccount(c *gin.Context) {
 	return
 }
 
-func decodeTokenAndReturnID(token string) (*string, error) {
+func (a *AccountsAPI) FollowAccount(c *gin.Context) {
 
-	tokenDecode := jwt.MapClaims{}
-	_, err := jwt.ParseWithClaims(token, tokenDecode, func(token *jwt.Token) (interface{}, error) {
-		return []byte(os.Getenv("JWT_TOKEN_KEY")), nil
-	})
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
-		return nil, err
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"Message": "Token Invalid",
+		})
+		return
 	}
-	id := tokenDecode["id"].(string)
 
-	return &id, nil
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
+	if err != nil {
+		log.Println(err)
+	}
+
+	if mapBody["id"] == nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Message": "Add ID",
+		})
+		return
+	}
+
+	accountToFollow := mapBody["id"].(string)
+
+	account, err := a.Controller.CreateFollow(accountID, &accountToFollow)
+	if err != nil {
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusConflict, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		case *errors.ConflictAlreadyFollowError:
+			log.Println(e)
+			c.JSON(http.StatusConflict, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
+	}
+
+	c.JSON(http.StatusOK, account.ToResponse())
+	return
+}
+
+func (a *AccountsAPI) SearchFollowing(c *gin.Context) {
+
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"Message": "Token Invalid",
+		})
+		return
+	}
+
+	listOfAccounts, err := a.Controller.FindAccountsFollowing(accountID)
+	if err != nil {
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusConflict, gin.H{
+				"Message": err.Error(),
+			})
+			return
+			log.Fatal(err)
+		}
+	}
+
+	c.JSON(http.StatusOK, listOfAccounts)
+	return
+}
+
+func (a *AccountsAPI) SearchFollowers(c *gin.Context) {
+
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"Message": "Token Invalid",
+		})
+		return
+	}
+
+	listOfAccounts, err := a.Controller.FindAccountsFollowers(accountID)
+	if err != nil {
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusConflict, gin.H{
+				"Message": err.Error(),
+			})
+			return
+			log.Fatal(err)
+		}
+	}
+
+	c.JSON(http.StatusOK, listOfAccounts)
+	return
+}
+
+func (a *AccountsAPI) UnfollowAccount(c *gin.Context) {
+
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"Message": "Token Invalid",
+		})
+		return
+	}
+
+	mapBody, err := utils.ReadBodyAndReturnMapBody(c.Request.Body)
+	if err != nil {
+		log.Println(err)
+	}
+
+	if mapBody["id"] == nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Message": "Add ID",
+		})
+		return
+	}
+
+	accountToFollow := mapBody["id"].(string)
+
+	account, err := a.Controller.DeleteFollow(accountID, &accountToFollow)
+	if err != nil {
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusConflict, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		case *errors.UnauthorizedAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusConflict, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		case *errors.ConflictAlreadyUnfollowError:
+			log.Println(e)
+			c.JSON(http.StatusConflict, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
+	}
+
+	c.JSON(http.StatusOK, account.ToResponse())
+	return
 }
 
 func mergeAccountToUpdatedAccount(account *entities.Account, mapBody map[string]interface{}) *entities.Account {
