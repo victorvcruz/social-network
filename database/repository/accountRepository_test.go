@@ -263,3 +263,116 @@ func TestAccountRepository_ExistsAccountByEmail(t *testing.T) {
 	assert.Empty(t, exist)
 	assert.Error(t, err)
 }
+
+func TestAccountRepositoryStruct_InsertAccountFollow(t *testing.T) {
+	db, mock := NewMock()
+	repo := AccountRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		INSERT INTO account_follow (account_id, account_id_followed)
+		VALUES ($1, $2)`
+
+	prep := mock.ExpectPrepare(query)
+
+	prep.ExpectExec().WithArgs(u.ID, u.ID).WillReturnResult(sqlmock.NewResult(0, 1))
+
+	err := repo.InsertAccountFollow(&u.ID, &u.ID)
+	assert.Error(t, err)
+}
+
+func TestAccountRepositoryStruct_FindAccountFollowingByAccountID(t *testing.T) {
+	db, mock := NewMock()
+	repo := AccountRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT account_id_followed
+		FROM account_follow
+		WHERE account_id = $1`
+
+	rows := sqlmock.NewRows([]string{"account_id_followed", "account_follow"}).
+		AddRow(u.ID, u.ID)
+
+	mock.ExpectQuery(query).WithArgs(u.ID).WillReturnRows(rows)
+
+	exist, err := repo.FindAccountFollowingByAccountID(&u.ID)
+	assert.Empty(t, exist)
+	assert.Error(t, err)
+}
+
+func TestAccountRepositoryStruct_FindAccountFollowersByAccountID(t *testing.T) {
+	db, mock := NewMock()
+	repo := AccountRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT account_id
+		FROM account_follow
+		WHERE account_id_followed = $1`
+
+	rows := sqlmock.NewRows([]string{"account_id_followed", "account_follow"}).
+		AddRow(u.ID, u.ID)
+
+	mock.ExpectQuery(query).WithArgs(u.ID).WillReturnRows(rows)
+
+	exist, err := repo.FindAccountFollowingByAccountID(&u.ID)
+	assert.Empty(t, exist)
+	assert.Error(t, err)
+}
+
+func TestAccountRepositoryStruct_DeleteAccountFollow(t *testing.T) {
+
+	db, mock := NewMock()
+	repo := AccountRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		UPDATE account_follow 
+		SET unfollowed = true 
+		WHERE account_id= $1
+		AND account_id_followed = $2`
+
+	prep := mock.ExpectPrepare(query)
+
+	prep.ExpectExec().WithArgs(u.ID).WillReturnResult(sqlmock.NewResult(0, 1))
+
+	err := repo.DeleteAccountFollow(&u.ID, &u.ID)
+	assert.Error(t, err)
+}
+
+func TestAccountRepositoryStruct_ExistsFollowByAccountIDAndAccountFollowedID(t *testing.T) {
+	db, mock := NewMock()
+	repo := AccountRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+
+	query := `
+		SELECT account_id
+		FROM account_follow
+		WHERE account_id = $1
+		AND account_id_followed = $2`
+
+	rows := sqlmock.NewRows([]string{"account_id", "account_id_followed"}).
+		AddRow(u.ID, u.ID)
+
+	mock.ExpectQuery(query).WithArgs(u.ID).WillReturnRows(rows)
+
+	exist, err := repo.ExistsFollowByAccountIDAndAccountFollowedID(&u.ID, &u.ID)
+	assert.Empty(t, exist)
+	assert.Error(t, err)
+}

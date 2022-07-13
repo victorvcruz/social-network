@@ -32,7 +32,7 @@ func RegisterInteractionsHandlers(handler *gin.Engine, interactionsController co
 }
 
 func (a InteractionsAPI) CreateInteraction(c *gin.Context) {
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -99,7 +99,7 @@ func (a InteractionsAPI) CreateInteraction(c *gin.Context) {
 }
 
 func (a InteractionsAPI) UpdateInteraction(c *gin.Context) {
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -148,7 +148,7 @@ func (a InteractionsAPI) UpdateInteraction(c *gin.Context) {
 }
 
 func (a InteractionsAPI) DeleteInteraction(c *gin.Context) {
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",

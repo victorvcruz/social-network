@@ -3,6 +3,7 @@ package utils
 import (
 	"database/sql"
 	"encoding/json"
+	"github.com/golang-jwt/jwt/v4"
 	"io"
 	"io/ioutil"
 	"log"
@@ -59,4 +60,18 @@ func StringNullable(str interface{}) string {
 		return ""
 	}
 	return str.(string)
+}
+
+func DecodeTokenAndReturnID(token string) (*string, error) {
+
+	tokenDecode := jwt.MapClaims{}
+	_, err := jwt.ParseWithClaims(token, tokenDecode, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("JWT_TOKEN_KEY")), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	id := tokenDecode["id"].(string)
+
+	return &id, nil
 }

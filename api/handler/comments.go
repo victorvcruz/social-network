@@ -33,7 +33,7 @@ func RegisterCommentsHandlers(handler *gin.Engine, commentsController controller
 }
 
 func (a *CommentsAPI) CreateComment(c *gin.Context) {
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -89,7 +89,7 @@ func (a *CommentsAPI) CreateComment(c *gin.Context) {
 
 func (a *CommentsAPI) GetComment(c *gin.Context) {
 
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -132,7 +132,7 @@ func (a *CommentsAPI) GetComment(c *gin.Context) {
 }
 
 func (a *CommentsAPI) UpdateComment(c *gin.Context) {
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -183,7 +183,7 @@ func (a *CommentsAPI) UpdateComment(c *gin.Context) {
 }
 
 func (a *CommentsAPI) DeleteComment(c *gin.Context) {
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",

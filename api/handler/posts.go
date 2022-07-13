@@ -29,11 +29,12 @@ func RegisterPostsHandlers(handler *gin.Engine, postsController controllers.Post
 	handler.GET("/accounts/posts", ac.GetPost)
 	handler.PUT("/posts", ac.UpdatePost)
 	handler.DELETE("/posts", ac.DeletePost)
+	handler.GET("/accounts/follows/posts", ac.SearchPostByAccountFollowing)
 }
 
 func (a *PostsAPI) CreatePost(c *gin.Context) {
 
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -76,7 +77,7 @@ func (a *PostsAPI) CreatePost(c *gin.Context) {
 
 func (a *PostsAPI) GetPost(c *gin.Context) {
 
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -105,7 +106,7 @@ func (a *PostsAPI) GetPost(c *gin.Context) {
 }
 
 func (a *PostsAPI) UpdatePost(c *gin.Context) {
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -154,7 +155,7 @@ func (a *PostsAPI) UpdatePost(c *gin.Context) {
 }
 
 func (a *PostsAPI) DeletePost(c *gin.Context) {
-	accountID, err := decodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -200,6 +201,34 @@ func (a *PostsAPI) DeletePost(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, postToRemoved)
+	return
+}
+
+func (a *PostsAPI) SearchPostByAccountFollowing(c *gin.Context) {
+
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"Message": "Token Invalid",
+		})
+		return
+	}
+
+	postsOfAccount, err := a.Controller.FindPostByAccountFollowingByAccountID(accountID)
+	if err != nil {
+		switch e := err.(type) {
+		case *errors.NotFoundAccountIDError:
+			log.Println(e)
+			c.JSON(http.StatusNotFound, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		default:
+			log.Fatal(err)
+		}
+	}
+
+	c.JSON(http.StatusOK, postsOfAccount)
 	return
 }
 
