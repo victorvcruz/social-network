@@ -123,7 +123,7 @@ func TestRequestInteractionValidate(t *testing.T) {
 
 	err := validate.Struct(interaction)
 	var expectedListString1 []string
-	expectedListString1 = append(expectedListString1, "Add ID", "Incorrect type, insert like or dislike")
+	expectedListString1 = append(expectedListString1, "Add ID", "Incorrect type, insert LIKE or DISLIKE")
 
 	listString1 := RequestInteractionValidate(err)
 

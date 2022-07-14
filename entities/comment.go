@@ -14,6 +14,8 @@ type Comment struct {
 	CreatedAt string
 	UpdatedAt string
 	Removed   bool
+	Like      int
+	Dislike   int
 }
 
 func (a *Comment) ToResponse() *response.CommentResponse {
@@ -25,5 +27,7 @@ func (a *Comment) ToResponse() *response.CommentResponse {
 		Content:   a.Content,
 		CreatedAt: a.CreatedAt,
 		UpdatedAt: a.UpdatedAt,
+		Like:      a.Like,
+		Dislike:   a.Dislike,
 	}
 }

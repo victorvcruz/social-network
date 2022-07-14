@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"social_network_project/database/postgresql"
 	"social_network_project/entities"
-	"social_network_project/entities/response"
 	"strings"
 	"time"
 )
@@ -18,7 +17,6 @@ type CommentRepository interface {
 	FindCommentByID(id *string) (*entities.Comment, error)
 	RemoveCommentByID(commentID, accountID *string) error
 	ExistsCommentByCommentIDAndAccountID(commentID, accountID *string) (*bool, error)
-	CountInteractionsForComment(commentId *string, typeValue int) (*int, error)
 }
 
 type CommentRepositoryStruct struct {
@@ -83,29 +81,15 @@ func (p *CommentRepositoryStruct) FindCommentsByAccountID(accountID, postID, com
 			&comment.Content,
 			&comment.CreatedAt,
 			&comment.UpdatedAt,
-			&comment.Removed,
+			&comment.Like,
+			&comment.Dislike,
 		)
 		if err != nil {
 			return nil, err
 		}
 		comment.CreatedAt = strings.Join(strings.Split(comment.CreatedAt, "T00:00:00Z"), "")
 		comment.UpdatedAt = strings.Join(strings.Split(comment.CreatedAt, "T00:00:00Z"), "")
-
-		commentResponse := comment.ToResponse()
-
-		like, err := p.CountInteractionsForComment(&commentResponse.ID, response.INTERACTION_TYPE_LIKED.EnumIndex())
-		if err != nil {
-			return nil, err
-		}
-
-		dislike, err := p.CountInteractionsForComment(&commentResponse.ID, response.INTERACTION_TYPE_DISLIKED.EnumIndex())
-		if err != nil {
-			return nil, err
-		}
-
-		commentResponse.Like = *like
-		commentResponse.Dislike = *dislike
-		list = append(list, commentResponse)
+		list = append(list, comment.ToResponse())
 	}
 
 	return list, nil
@@ -126,7 +110,18 @@ func dinamicQueryFindCommentsByAccountID(mapBody map[string]interface{}) string 
 	if strings.Join(where, " AND ") != "" {
 		str = " AND " + strings.Join(where, " AND ")
 	}
-	stringQuery := "SELECT id, account_id, post_id, comment_id, content, created_at, updated_at, removed FROM comment WHERE account_id = $1 AND removed = false" + str
+
+	stringQuery := `
+		SELECT comment.id, comment.account_id, comment.post_id, comment.comment_id, comment.content, comment.created_at, comment.updated_at, 
+	(
+		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'LIKE' 
+	) AS like,
+	(
+		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'DISLIKE' 
+	) AS dislike
+	FROM comment
+	WHERE comment.account_id = $1
+	AND comment.removed = false` + str + " GROUP BY comment.id;"
 
 	return stringQuery
 }
@@ -209,26 +204,4 @@ func (p *CommentRepositoryStruct) ExistsCommentByCommentIDAndAccountID(commentID
 
 	next := rows.Next()
 	return &next, nil
-}
-
-func (p *CommentRepositoryStruct) CountInteractionsForComment(commentId *string, typeValue int) (*int, error) {
-	sqlStatement := `
-		SELECT count(type) 
-		FROM interaction
-		WHERE comment_id = $1
-		AND type = $2`
-
-	rows, err := p.Db.Query(sqlStatement, commentId, typeValue)
-	if err != nil {
-		return nil, err
-	}
-
-	rows.Next()
-	var count *int
-	err = rows.Scan(&count)
-	if err != nil {
-		return nil, err
-	}
-
-	return count, nil
 }

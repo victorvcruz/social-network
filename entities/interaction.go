@@ -10,7 +10,7 @@ type Interaction struct {
 	AccountID string
 	PostID    sql.NullString
 	CommentID sql.NullString
-	Type      response.InteractionType `validate:"gte=0,lte=1"`
+	Type      InteractionType `validate:"gte=0,lte=1"`
 	CreatedAt string
 	UpdatedAt string
 	Removed   bool
@@ -22,8 +22,36 @@ func (a *Interaction) ToResponse() *response.InteractionResponse {
 		AccountID: a.AccountID,
 		PostID:    a.PostID.String,
 		CommentID: a.CommentID.String,
-		Type:      a.Type,
+		Type:      a.Type.ToString(),
 		CreatedAt: a.CreatedAt,
 		UpdatedAt: a.UpdatedAt,
 	}
+}
+
+type InteractionType int
+
+const (
+	INTERACTION_TYPE_LIKE InteractionType = iota
+	INTERACTION_TYPE_DISLIKE
+)
+
+func (i InteractionType) ToString() string {
+	return [...]string{"LIKE", "DISLIKE"}[i]
+}
+
+func (i InteractionType) EnumIndex() int {
+	return int(i)
+}
+
+func ParseString(str string) (InteractionType, bool) {
+	var interaction InteractionType
+	if str == "LIKE" {
+		interaction = INTERACTION_TYPE_LIKE
+		return interaction, true
+	}
+	if str == "DISLIKE" {
+		interaction = INTERACTION_TYPE_DISLIKE
+		return interaction, true
+	}
+	return 0, false
 }

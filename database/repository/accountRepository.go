@@ -220,10 +220,12 @@ func (p *AccountRepositoryStruct) InsertAccountFollow(accountID, accountFollow *
 
 func (p *AccountRepositoryStruct) FindAccountFollowingByAccountID(accountID *string) ([]interface{}, error) {
 	sqlStatement := `
-		SELECT account_id_followed
+		SELECT account.id, account.username, account.name, account.description, account.email,
+		account.password, account.created_at , account.updated_at, account.deleted 
 		FROM account_follow
-		WHERE account_id = $1
-		AND unfollowed = false`
+		INNER JOIN account ON account_follow.account_id = account.id
+		WHERE account_follow.account_id = $1
+		AND account_follow.unfollowed = false`
 
 	rows, err := p.Db.Query(sqlStatement, accountID)
 	if err != nil {
@@ -231,17 +233,24 @@ func (p *AccountRepositoryStruct) FindAccountFollowingByAccountID(accountID *str
 	}
 
 	list := []interface{}{}
-	var id *string
-
+	var account entities.Account
 	for rows.Next() {
-		err = rows.Scan(&id)
+		err = rows.Scan(
+			&account.ID,
+			&account.Username,
+			&account.Name,
+			&account.Description,
+			&account.Email,
+			&account.Password,
+			&account.CreatedAt,
+			&account.UpdatedAt,
+			&account.Deleted,
+		)
 		if err != nil {
 			return nil, err
 		}
-		account, err := p.FindAccountByID(id)
-		if err != nil {
-			return nil, err
-		}
+		account.CreatedAt = strings.Join(strings.Split(account.CreatedAt, "T00:00:00Z"), "")
+		account.UpdatedAt = strings.Join(strings.Split(account.CreatedAt, "T00:00:00Z"), "")
 
 		list = append(list, account.ToResponse())
 	}
@@ -251,10 +260,12 @@ func (p *AccountRepositoryStruct) FindAccountFollowingByAccountID(accountID *str
 
 func (p *AccountRepositoryStruct) FindAccountFollowersByAccountID(accountID *string) ([]interface{}, error) {
 	sqlStatement := `
-		SELECT account_id
-		FROM account_follow
-		WHERE account_id_followed = $1
-		AND unfollowed = false`
+	SELECT account.id, account.username, account.name, account.description, account.email,
+	account.password, account.created_at , account.updated_at, account.deleted
+	FROM account_follow
+	INNER JOIN account ON account_follow.account_id_followed = account.id
+	WHERE account_follow.account_id_followed = $1
+	AND account_follow.unfollowed = false`
 
 	rows, err := p.Db.Query(sqlStatement, accountID)
 	if err != nil {
@@ -262,17 +273,24 @@ func (p *AccountRepositoryStruct) FindAccountFollowersByAccountID(accountID *str
 	}
 
 	list := []interface{}{}
-	var id *string
-
+	var account entities.Account
 	for rows.Next() {
-		err = rows.Scan(&id)
+		err = rows.Scan(
+			&account.ID,
+			&account.Username,
+			&account.Name,
+			&account.Description,
+			&account.Email,
+			&account.Password,
+			&account.CreatedAt,
+			&account.UpdatedAt,
+			&account.Deleted,
+		)
 		if err != nil {
 			return nil, err
 		}
-		account, err := p.FindAccountByID(id)
-		if err != nil {
-			return nil, err
-		}
+		account.CreatedAt = strings.Join(strings.Split(account.CreatedAt, "T00:00:00Z"), "")
+		account.UpdatedAt = strings.Join(strings.Split(account.CreatedAt, "T00:00:00Z"), "")
 
 		list = append(list, account.ToResponse())
 	}

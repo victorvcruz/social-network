@@ -5,7 +5,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"social_network_project/entities"
-	"social_network_project/entities/response"
 	"testing"
 	"time"
 )
@@ -53,10 +52,17 @@ func TestPostRepositoryStruct_FindPostsByAccountID(t *testing.T) {
 	}()
 
 	query := `
-		SELECT id, account_id, content, created_at, updated_at
-		FROM post
-		WHERE account_id = $1
-		AND removed = false`
+	SELECT post.id, post.account_id, post.content, post.created_at, post.updated_at, 
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'LIKE' 
+	) AS like,
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'DISLIKE' 
+	) AS dislike
+	FROM post
+	WHERE post.account_id = $1
+	AND post.removed = false
+	GROUP BY post.id;`
 
 	rows := sqlmock.NewRows([]string{"id", "account_id", "content", "created_at", "updated_at"}).
 		AddRow(p.ID, p.AccountID, p.Content, p.CreatedAt, p.UpdatedAt)
@@ -101,10 +107,17 @@ func TestPostRepositoryStruct_FindPostByID(t *testing.T) {
 	}()
 
 	query := `
-		SELECT id, account_id, content, created_at, updated_at
-		FROM post
-		WHERE id = $1
-		AND removed = false`
+	SELECT post.id, post.account_id, post.content, post.created_at, post.updated_at, 
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'LIKE' 
+	) AS like,
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'DISLIKE' 
+	) AS dislike
+	FROM post
+	WHERE post.account_id = $1
+	AND post.removed = false
+	GROUP BY post.id;`
 
 	rows := sqlmock.NewRows([]string{"id", "account_id", "content", "created_at", "updated_at"}).
 		AddRow(p.ID, p.AccountID, p.Content, p.CreatedAt, p.UpdatedAt)
@@ -188,26 +201,38 @@ func TestPostRepositoryStruct_ExistsPostByPostIDAndAccountID(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestPostRepositoryStruct_CountInteractionsForPost(t *testing.T) {
+func TestPostRepositoryStruct_FindPostByAccountFollowingByAccountID(t *testing.T) {
 	db, mock := NewMock()
 	repo := PostRepositoryStruct{db}
+	page := "1"
 
 	defer func() {
 		db.Close()
 	}()
 
 	query := `
-		SELECT count(type) 
-		FROM interaction
-		WHERE post_id = $1
-		AND type = $2`
+	SELECT post.id, post.account_id, post.content, post.created_at, post.updated_at, 
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'LIKE' 
+	) AS like,
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'DISLIKE' 
+	) AS dislike
+	FROM account_follow
+	INNER JOIN post ON account_follow.account_id_followed = post.account_id 
+	WHERE account_follow.account_id = $1
+	AND post.removed = false
+	AND account_follow.unfollowed = false
+	Order By post.created_at 
+	OFFSET ($2 - 1) * 10
+	FETCH NEXT 10 ROWS ONLY;`
 
-	rows := sqlmock.NewRows([]string{"post_id", "type"}).
-		AddRow(i.PostID, i.Type)
+	rows := sqlmock.NewRows([]string{"id", "account_id", "content", "created_at", "updated_at"}).
+		AddRow(p.ID, p.AccountID, p.Content, p.CreatedAt, p.UpdatedAt)
 
-	mock.ExpectQuery(query).WithArgs(i.PostID).WillReturnRows(rows)
+	mock.ExpectQuery(query).WithArgs(p.ID).WillReturnRows(rows)
 
-	id, err := repo.CountInteractionsForPost(&i.PostID.String, response.INTERACTION_TYPE_LIKED.EnumIndex())
-	assert.Empty(t, id)
+	account, err := repo.FindPostByAccountFollowingByAccountID(&p.AccountID, &page)
+	assert.Empty(t, account)
 	assert.Error(t, err)
 }

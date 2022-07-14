@@ -78,7 +78,7 @@ func RequestInteractionValidate(err error) []string {
 	for _, err := range err.(validator.ValidationErrors) {
 
 		if err.Namespace() == "Interaction.Type" && (err.Tag() == "gte" || err.Tag() == "lte") {
-			errors = append(errors, "Incorrect type, insert like or dislike")
+			errors = append(errors, "Incorrect type, insert LIKE or DISLIKE")
 		}
 		if err.Namespace() == "Interaction.ID" {
 			errors = append(errors, "Add ID")

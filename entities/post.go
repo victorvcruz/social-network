@@ -9,6 +9,8 @@ type Post struct {
 	CreatedAt string
 	UpdatedAt string
 	Removed   bool
+	Like      int
+	Dislike   int
 }
 
 func (a *Post) ToResponse() response.PostResponse {
@@ -18,5 +20,7 @@ func (a *Post) ToResponse() response.PostResponse {
 		Content:   a.Content,
 		CreatedAt: a.CreatedAt,
 		UpdatedAt: a.UpdatedAt,
+		Like:      a.Like,
+		Dislike:   a.Dislike,
 	}
 }

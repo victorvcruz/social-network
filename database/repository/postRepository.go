@@ -17,17 +17,15 @@ type PostRepository interface {
 	ExistsPostByID(id *string) (*bool, error)
 	RemovePostByID(postID, accountID *string) error
 	ExistsPostByPostIDAndAccountID(postID, accountID *string) (*bool, error)
-	CountInteractionsForPost(postID *string, typeValue int) (*int, error)
-	FindPostByAccountFollowingByAccountID(accountID *string) ([]interface{}, error)
+	FindPostByAccountFollowingByAccountID(accountID *string, page *string) ([]interface{}, error)
 }
 
 type PostRepositoryStruct struct {
-	Account AccountRepositoryStruct
-	Db      *sql.DB
+	Db *sql.DB
 }
 
 func NewPostRepository() PostRepository {
-	return &PostRepositoryStruct{AccountRepositoryStruct{postgresql.Db}, postgresql.Db}
+	return &PostRepositoryStruct{postgresql.Db}
 }
 
 func (p *PostRepositoryStruct) InsertPost(post *entities.Post) error {
@@ -44,14 +42,21 @@ func (p *PostRepositoryStruct) InsertPost(post *entities.Post) error {
 	return nil
 }
 
-func (p *PostRepositoryStruct) FindPostsByAccountID(id *string) ([]interface{}, error) {
+func (p *PostRepositoryStruct) FindPostsByAccountID(accountID *string) ([]interface{}, error) {
 	sqlStatement := `
-		SELECT id, account_id, content, created_at, updated_at
-		FROM post
-		WHERE account_id = $1
-		AND removed = false`
+	SELECT post.id, post.account_id, post.content, post.created_at, post.updated_at, 
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'LIKE' 
+	) AS like,
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'DISLIKE' 
+	) AS dislike
+	FROM post
+	WHERE post.account_id = $1
+	AND post.removed = false
+	GROUP BY post.id;`
 
-	rows, err := p.Db.Query(sqlStatement, id)
+	rows, err := p.Db.Query(sqlStatement, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +70,8 @@ func (p *PostRepositoryStruct) FindPostsByAccountID(id *string) ([]interface{}, 
 			&post.Content,
 			&post.CreatedAt,
 			&post.UpdatedAt,
+			&post.Like,
+			&post.Dislike,
 		)
 		if err != nil {
 			return nil, err
@@ -72,18 +79,6 @@ func (p *PostRepositoryStruct) FindPostsByAccountID(id *string) ([]interface{}, 
 		post.CreatedAt = strings.Join(strings.Split(post.CreatedAt, "T00:00:00Z"), "")
 		post.UpdatedAt = strings.Join(strings.Split(post.CreatedAt, "T00:00:00Z"), "")
 
-		like, err := p.CountInteractionsForPost(&post.ID, response.INTERACTION_TYPE_LIKED.EnumIndex())
-		if err != nil {
-			return nil, err
-		}
-
-		dislike, err := p.CountInteractionsForPost(&post.ID, response.INTERACTION_TYPE_DISLIKED.EnumIndex())
-		if err != nil {
-			return nil, err
-		}
-
-		post.Like = *like
-		post.Dislike = *dislike
 		list = append(list, post)
 	}
 
@@ -110,10 +105,17 @@ func (p *PostRepositoryStruct) UpdatePostDataByID(postID, accountID, content *st
 
 func (p *PostRepositoryStruct) FindPostByID(id *string) (*response.PostResponse, error) {
 	sqlStatement := `
-		SELECT id, account_id, content, created_at, updated_at
-		FROM post
-		WHERE id = $1
-		AND removed = false`
+	SELECT post.id, post.account_id, post.content, post.created_at, post.updated_at, 
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'LIKE' 
+	) AS like,
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'DISLIKE' 
+	) AS dislike
+	FROM post
+	WHERE post.account_id = $1
+	AND post.removed = false
+	GROUP BY post.id;`
 
 	rows, err := p.Db.Query(sqlStatement, id)
 	if err != nil {
@@ -182,54 +184,48 @@ func (p *PostRepositoryStruct) ExistsPostByPostIDAndAccountID(postID, accountID 
 	return &next, nil
 }
 
-func (p *PostRepositoryStruct) CountInteractionsForPost(postID *string, typeValue int) (*int, error) {
+func (p *PostRepositoryStruct) FindPostByAccountFollowingByAccountID(accountID *string, page *string) ([]interface{}, error) {
 	sqlStatement := `
-		SELECT count(type) 
-		FROM interaction
-		WHERE post_id = $1
-		AND type = $2`
+	SELECT post.id, post.account_id, post.content, post.created_at, post.updated_at, 
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'LIKE' 
+	) AS like,
+	(
+		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'DISLIKE' 
+	) AS dislike
+	FROM account_follow
+	INNER JOIN post ON account_follow.account_id_followed = post.account_id 
+	WHERE account_follow.account_id = $1
+	AND post.removed = false
+	AND account_follow.unfollowed = false
+	Order By post.created_at 
+	OFFSET ($2 - 1) * 10
+	FETCH NEXT 10 ROWS ONLY;`
 
-	rows, err := p.Db.Query(sqlStatement, postID, typeValue)
-	if err != nil {
-		return nil, err
-	}
-
-	rows.Next()
-	var count *int
-	err = rows.Scan(&count)
-	if err != nil {
-		return nil, err
-	}
-
-	return count, nil
-}
-
-func (p *PostRepositoryStruct) FindPostByAccountFollowingByAccountID(accountID *string) ([]interface{}, error) {
-	sqlStatement := `
-		SELECT account_id_followed
-		FROM account_follow
-		WHERE account_id = $1
-		AND unfollowed = false`
-
-	rows, err := p.Db.Query(sqlStatement, accountID)
+	rows, err := p.Db.Query(sqlStatement, accountID, page)
 	if err != nil {
 		return nil, err
 	}
 
 	list := []interface{}{}
-	var id *string
-
+	var post response.PostResponse
 	for rows.Next() {
-		err = rows.Scan(&id)
+		err = rows.Scan(
+			&post.ID,
+			&post.AccountID,
+			&post.Content,
+			&post.CreatedAt,
+			&post.UpdatedAt,
+			&post.Like,
+			&post.Dislike,
+		)
 		if err != nil {
 			return nil, err
 		}
-		posts, err := p.FindPostsByAccountID(id)
-		if err != nil {
-			return nil, err
-		}
+		post.CreatedAt = strings.Join(strings.Split(post.CreatedAt, "T00:00:00Z"), "")
+		post.UpdatedAt = strings.Join(strings.Split(post.CreatedAt, "T00:00:00Z"), "")
 
-		list = append(list, posts)
+		list = append(list, post)
 	}
 
 	return list, nil

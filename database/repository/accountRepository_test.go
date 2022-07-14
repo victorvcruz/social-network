@@ -293,9 +293,12 @@ func TestAccountRepositoryStruct_FindAccountFollowingByAccountID(t *testing.T) {
 	}()
 
 	query := `
-		SELECT account_id_followed
+		SELECT account.id, account.username, account."name", account.description, account.email,
+		account."password", account."password", account.created_at , account.updated_at, account.deleted 
 		FROM account_follow
-		WHERE account_id = $1`
+		INNER JOIN account ON account_follow.account_id = account.id
+		WHERE account_follow.account_id = $1
+		AND account_follow.unfollowed = false`
 
 	rows := sqlmock.NewRows([]string{"account_id_followed", "account_follow"}).
 		AddRow(u.ID, u.ID)
@@ -316,9 +319,12 @@ func TestAccountRepositoryStruct_FindAccountFollowersByAccountID(t *testing.T) {
 	}()
 
 	query := `
-		SELECT account_id
-		FROM account_follow
-		WHERE account_id_followed = $1`
+	SELECT account.id, account.username, account.name, account.description, account.email,
+	account.password, account.created_at , account.updated_at, account.deleted
+	FROM account_follow
+	INNER JOIN account ON account_follow.account_id_followed = account.id
+	WHERE account_follow.account_id_followed = $1
+	AND account_follow.unfollowed = false`
 
 	rows := sqlmock.NewRows([]string{"account_id_followed", "account_follow"}).
 		AddRow(u.ID, u.ID)
