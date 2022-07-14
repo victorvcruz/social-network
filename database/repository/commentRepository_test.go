@@ -5,7 +5,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"social_network_project/entities"
-	"social_network_project/entities/response"
 	"social_network_project/utils"
 	"testing"
 	"time"
@@ -95,11 +94,21 @@ func TestCommentRepositoryStruct_FindCommentsByAccountID(t *testing.T) {
 
 func TestNewComentRepository_dinamicQueryFindCommentsByAccountID(t *testing.T) {
 	ids1 := map[string]interface{}{
-		"post_id":    "7d077271-fc44-4792-9ba9-ff15154f6cca",
-		"comment_id": "05f508c6-cc9b-4942-a62f-0aa08d01ed45",
+		"post_id":    "c7f6c53b-aa5c-4f24-9f5f-d3eeeedd408d",
+		"comment_id": "26c941e5-6a6d-4574-a7ee-6df54c7ace98",
 	}
 
-	stringQueryExpected1 := `SELECT id, account_id, post_id, comment_id, content, created_at, updated_at FROM comment WHERE account_id = $1 AND removed = false AND "comment_id" = '05f508c6-cc9b-4942-a62f-0aa08d01ed45' AND "post_id" = '7d077271-fc44-4792-9ba9-ff15154f6cca'`
+	stringQueryExpected1 := `
+		SELECT comment.id, comment.account_id, comment.post_id, comment.comment_id, comment.content, comment.created_at, comment.updated_at, 
+	(
+		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'LIKE' 
+	) AS like,
+	(
+		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'DISLIKE' 
+	) AS dislike
+	FROM comment
+	WHERE comment.account_id = $1
+	AND comment.removed = false AND "post_id" = 'c7f6c53b-aa5c-4f24-9f5f-d3eeeedd408d' AND "comment_id" = '26c941e5-6a6d-4574-a7ee-6df54c7ace98' GROUP BY comment.id;`
 	stringQuery1 := dinamicQueryFindCommentsByAccountID(ids1)
 
 	assert.Equal(t, len(stringQueryExpected1), len(stringQuery1))
@@ -109,7 +118,17 @@ func TestNewComentRepository_dinamicQueryFindCommentsByAccountID(t *testing.T) {
 		"comment_id": "",
 	}
 
-	stringQueryExpected2 := `SELECT id, account_id, post_id, comment_id, content, created_at, updated_at FROM comment WHERE account_id = $1 AND removed = false`
+	stringQueryExpected2 := `
+		SELECT comment.id, comment.account_id, comment.post_id, comment.comment_id, comment.content, comment.created_at, comment.updated_at, 
+	(
+		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'LIKE' 
+	) AS like,
+	(
+		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'DISLIKE' 
+	) AS dislike
+	FROM comment
+	WHERE comment.account_id = $1
+	AND comment.removed = false GROUP BY comment.id;`
 	stringQuery2 := dinamicQueryFindCommentsByAccountID(ids2)
 
 	assert.Equal(t, len(stringQueryExpected2), len(stringQuery2))
@@ -208,29 +227,5 @@ func TestCommentRepositoryStruct_ExistsCommentByCommentIDAndAccountID(t *testing
 
 	exist, err := repo.ExistsCommentByCommentIDAndAccountID(&c.ID, &c.AccountID)
 	assert.Empty(t, exist)
-	assert.Error(t, err)
-}
-
-func TestCommentRepositoryStruct_CountInteractionsForComment(t *testing.T) {
-	db, mock := NewMock()
-	repo := CommentRepositoryStruct{db}
-
-	defer func() {
-		db.Close()
-	}()
-
-	query := `
-		SELECT count(type) 
-		FROM interaction
-		WHERE comment_id = $1
-		AND type = $2`
-
-	rows := sqlmock.NewRows([]string{"comment_id", "type"}).
-		AddRow(i.CommentID, i.Type)
-
-	mock.ExpectQuery(query).WithArgs(i.CommentID).WillReturnRows(rows)
-
-	id, err := repo.CountInteractionsForComment(&i.CommentID.String, response.INTERACTION_TYPE_LIKED.EnumIndex())
-	assert.Empty(t, id)
 	assert.Error(t, err)
 }

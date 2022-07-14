@@ -11,6 +11,7 @@ import (
 	"social_network_project/controllers/validate"
 	"social_network_project/entities"
 	"social_network_project/utils"
+	"strconv"
 	"time"
 )
 
@@ -214,7 +215,14 @@ func (a *PostsAPI) SearchPostByAccountFollowing(c *gin.Context) {
 		return
 	}
 
-	postsOfAccount, err := a.Controller.FindPostByAccountFollowingByAccountID(accountID)
+	page := c.DefaultQuery("page", "1")
+	if _, err = strconv.ParseInt(page, 10, 64); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Message": "Page is not a number",
+		})
+		return
+	}
+	postsOfAccount, err := a.Controller.FindPostByAccountFollowingByAccountID(accountID, &page)
 	if err != nil {
 		switch e := err.(type) {
 		case *errors.NotFoundAccountIDError:

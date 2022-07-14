@@ -10,7 +10,6 @@ import (
 	"social_network_project/controllers/errors"
 	"social_network_project/controllers/validate"
 	"social_network_project/entities"
-	"social_network_project/entities/response"
 	"social_network_project/utils"
 	"time"
 )
@@ -199,7 +198,7 @@ func (a InteractionsAPI) DeleteInteraction(c *gin.Context) {
 
 func CreateInteractionStruct(mapBody map[string]interface{}, accountID *string) *entities.Interaction {
 
-	interaction, ok := response.ParseString(utils.StringNullable(mapBody["type"]))
+	interaction, ok := entities.ParseString(utils.StringNullable(mapBody["type"]))
 	if !ok {
 		interaction = 400
 	}

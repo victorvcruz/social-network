@@ -4,14 +4,13 @@ import (
 	"database/sql"
 	"social_network_project/database/postgresql"
 	"social_network_project/entities"
-	"social_network_project/entities/response"
 	"time"
 )
 
 type InteractionRepository interface {
 	InsertInteraction(interaction *entities.Interaction) error
 	ExistsInteractionByID(id *string) (*bool, error)
-	UpdateInteractonDataByID(interactionID, accountID *string, typeValue *response.InteractionType) error
+	UpdateInteractonDataByID(interactionID, accountID *string, typeValue *entities.InteractionType) error
 	ExistsInteractionByInteractionIDAndAccountID(interactionID, accountID *string) (*bool, error)
 	FindInteractionByID(id *string) (*entities.Interaction, error)
 	RemoveInteractionByID(interactionID, accountID *string) error
@@ -33,7 +32,7 @@ func (p *InteractionRepositoryStruct) InsertInteraction(interaction *entities.In
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	row := p.Db.QueryRow(sqlStatement, interaction.ID, interaction.AccountID, interaction.PostID, interaction.CommentID,
-		interaction.Type, interaction.CreatedAt, interaction.UpdatedAt, interaction.Removed)
+		interaction.Type.ToString(), interaction.CreatedAt, interaction.UpdatedAt, interaction.Removed)
 	if row.Err() != nil {
 		return row.Err()
 	}
@@ -56,7 +55,7 @@ func (p *InteractionRepositoryStruct) ExistsInteractionByID(id *string) (*bool, 
 	return &next, nil
 }
 
-func (p *InteractionRepositoryStruct) UpdateInteractonDataByID(interactionID, accountID *string, typeValue *response.InteractionType) error {
+func (p *InteractionRepositoryStruct) UpdateInteractonDataByID(interactionID, accountID *string, typeValue *entities.InteractionType) error {
 	sqlStatement := `
 		UPDATE interaction
 		SET type = $1, updated_at = $2
@@ -66,7 +65,7 @@ func (p *InteractionRepositoryStruct) UpdateInteractonDataByID(interactionID, ac
 
 	updateTime := time.Now().UTC().Format("2006-01-02")
 
-	row := p.Db.QueryRow(sqlStatement, typeValue, updateTime, interactionID, accountID)
+	row := p.Db.QueryRow(sqlStatement, typeValue.ToString(), updateTime, interactionID, accountID)
 	if row.Err() != nil {
 		return row.Err()
 	}

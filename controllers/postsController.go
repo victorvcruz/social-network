@@ -12,7 +12,7 @@ type PostsController interface {
 	FindPostsByAccountID(accountID, idToGet *string) ([]interface{}, error)
 	UpdatePostDataByID(post *entities.Post) (*response.PostResponse, error)
 	RemovePostByID(post *entities.Post) (*response.PostResponse, error)
-	FindPostByAccountFollowingByAccountID(accountID *string) ([]interface{}, error)
+	FindPostByAccountFollowingByAccountID(accountID *string, page *string) ([]interface{}, error)
 }
 
 type PostsControllerStruct struct {
@@ -116,7 +116,7 @@ func (p PostsControllerStruct) RemovePostByID(post *entities.Post) (*response.Po
 	return postToRemoved, nil
 }
 
-func (p PostsControllerStruct) FindPostByAccountFollowingByAccountID(accountID *string) ([]interface{}, error) {
+func (p PostsControllerStruct) FindPostByAccountFollowingByAccountID(accountID *string, page *string) ([]interface{}, error) {
 
 	existID, err := p.repositoryAccount.ExistsAccountByID(accountID)
 	if err != nil {
@@ -126,5 +126,5 @@ func (p PostsControllerStruct) FindPostByAccountFollowingByAccountID(accountID *
 		return nil, &errors.NotFoundAccountIDError{}
 	}
 
-	return p.repositoryPost.FindPostByAccountFollowingByAccountID(accountID)
+	return p.repositoryPost.FindPostByAccountFollowingByAccountID(accountID, page)
 }
