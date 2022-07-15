@@ -2,8 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
-	"social_network_project/database/postgresql"
 	"social_network_project/entities"
 	"strings"
 	"time"
@@ -12,7 +10,8 @@ import (
 type CommentRepository interface {
 	InsertComment(comment *entities.Comment) error
 	ExistsCommentByID(id *string) (*bool, error)
-	FindCommentsByAccountID(accountID, postID, commentID *string) ([]interface{}, error)
+	FindCommentsByAccountID(accountID, page *string) ([]interface{}, error)
+	FindCommentsByPostOrCommentID(postID, commentID, page *string) ([]interface{}, error)
 	UpdateCommentDataByID(commentID, accountID, content *string) error
 	FindCommentByID(id *string) (*entities.Comment, error)
 	RemoveCommentByID(commentID, accountID *string) error
@@ -23,8 +22,8 @@ type CommentRepositoryStruct struct {
 	Db *sql.DB
 }
 
-func NewComentRepository() CommentRepository {
-	return &CommentRepositoryStruct{postgresql.Db}
+func NewComentRepository(postgresDB *sql.DB) CommentRepository {
+	return &CommentRepositoryStruct{postgresDB}
 }
 
 func (p *CommentRepositoryStruct) InsertComment(comment *entities.Comment) error {
@@ -56,16 +55,24 @@ func (p *CommentRepositoryStruct) ExistsCommentByID(id *string) (*bool, error) {
 	return &next, nil
 }
 
-func (p *CommentRepositoryStruct) FindCommentsByAccountID(accountID, postID, commentID *string) ([]interface{}, error) {
+func (p *CommentRepositoryStruct) FindCommentsByAccountID(accountID, page *string) ([]interface{}, error) {
 
-	ids := map[string]interface{}{
-		"post_id":    *postID,
-		"comment_id": *commentID,
-	}
+	stringQuery := `
+		SELECT comment.id, comment.account_id, comment.post_id, comment.comment_id, comment.content, comment.created_at, comment.updated_at, 
+	(
+		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'LIKE' 
+	) AS like,
+	(
+		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'DISLIKE' 
+	) AS dislike
+	FROM comment
+	WHERE comment.account_id = $1
+	AND comment.removed = false
+	Order By comment.created_at 
+	OFFSET ($2 - 1) * 10
+	FETCH NEXT 10 ROWS ONLY;`
 
-	str := dinamicQueryFindCommentsByAccountID(ids)
-
-	rows, err := p.Db.Query(str, accountID)
+	rows, err := p.Db.Query(stringQuery, accountID, page)
 	if err != nil {
 		return nil, err
 	}
@@ -95,20 +102,16 @@ func (p *CommentRepositoryStruct) FindCommentsByAccountID(accountID, postID, com
 	return list, nil
 }
 
-func dinamicQueryFindCommentsByAccountID(mapBody map[string]interface{}) string {
+func (p *CommentRepositoryStruct) FindCommentsByPostOrCommentID(postID, commentID, page *string) ([]interface{}, error) {
 
-	var values []interface{}
-	var where []string
-
-	for key, value := range mapBody {
-		values = append(values, value)
-		if value != "" {
-			where = append(where, fmt.Sprintf(`"%s" = '%s'`, key, value))
-		}
-	}
-	str := ""
-	if strings.Join(where, " AND ") != "" {
-		str = " AND " + strings.Join(where, " AND ")
+	var str string
+	var value *string
+	if *postID != "" {
+		str = "comment.post_id = $1 "
+		value = postID
+	} else {
+		str = "comment.comment_id = $1 "
+		value = commentID
 	}
 
 	stringQuery := `
@@ -120,10 +123,40 @@ func dinamicQueryFindCommentsByAccountID(mapBody map[string]interface{}) string 
 		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'DISLIKE' 
 	) AS dislike
 	FROM comment
-	WHERE comment.account_id = $1
-	AND comment.removed = false` + str + " GROUP BY comment.id;"
+	WHERE ` + str +
+		`AND comment.removed = false
+		Order By comment.created_at 
+		OFFSET ($2 - 1) * 10
+		FETCH NEXT 10 ROWS ONLY;`
 
-	return stringQuery
+	rows, err := p.Db.Query(stringQuery, value, page)
+	if err != nil {
+		return nil, err
+	}
+
+	list := []interface{}{}
+	var comment entities.Comment
+	for rows.Next() {
+		err = rows.Scan(
+			&comment.ID,
+			&comment.AccountID,
+			&comment.PostID,
+			&comment.CommentID,
+			&comment.Content,
+			&comment.CreatedAt,
+			&comment.UpdatedAt,
+			&comment.Like,
+			&comment.Dislike,
+		)
+		if err != nil {
+			return nil, err
+		}
+		comment.CreatedAt = strings.Join(strings.Split(comment.CreatedAt, "T00:00:00Z"), "")
+		comment.UpdatedAt = strings.Join(strings.Split(comment.CreatedAt, "T00:00:00Z"), "")
+		list = append(list, comment.ToResponse())
+	}
+
+	return list, nil
 }
 
 func (p *CommentRepositoryStruct) UpdateCommentDataByID(commentID, accountID, content *string) error {

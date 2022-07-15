@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"social_network_project/database/postgresql"
 	"social_network_project/entities"
 	"social_network_project/entities/response"
 	"strings"
@@ -11,7 +10,7 @@ import (
 
 type PostRepository interface {
 	InsertPost(post *entities.Post) error
-	FindPostsByAccountID(id *string) ([]interface{}, error)
+	FindPostsByAccountID(accountID, page *string) ([]interface{}, error)
 	UpdatePostDataByID(postID, accountID, content *string) error
 	FindPostByID(id *string) (*response.PostResponse, error)
 	ExistsPostByID(id *string) (*bool, error)
@@ -24,8 +23,8 @@ type PostRepositoryStruct struct {
 	Db *sql.DB
 }
 
-func NewPostRepository() PostRepository {
-	return &PostRepositoryStruct{postgresql.Db}
+func NewPostRepository(postgresDB *sql.DB) PostRepository {
+	return &PostRepositoryStruct{postgresDB}
 }
 
 func (p *PostRepositoryStruct) InsertPost(post *entities.Post) error {
@@ -42,7 +41,7 @@ func (p *PostRepositoryStruct) InsertPost(post *entities.Post) error {
 	return nil
 }
 
-func (p *PostRepositoryStruct) FindPostsByAccountID(accountID *string) ([]interface{}, error) {
+func (p *PostRepositoryStruct) FindPostsByAccountID(accountID, page *string) ([]interface{}, error) {
 	sqlStatement := `
 	SELECT post.id, post.account_id, post.content, post.created_at, post.updated_at, 
 	(
@@ -54,9 +53,11 @@ func (p *PostRepositoryStruct) FindPostsByAccountID(accountID *string) ([]interf
 	FROM post
 	WHERE post.account_id = $1
 	AND post.removed = false
-	GROUP BY post.id;`
+	Order By post.created_at 
+	OFFSET ($2 - 1) * 10
+	FETCH NEXT 10 ROWS ONLY;`
 
-	rows, err := p.Db.Query(sqlStatement, accountID)
+	rows, err := p.Db.Query(sqlStatement, accountID, page)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +102,7 @@ func (p *PostRepositoryStruct) UpdatePostDataByID(postID, accountID, content *st
 	}
 
 	return nil
+
 }
 
 func (p *PostRepositoryStruct) FindPostByID(id *string) (*response.PostResponse, error) {
@@ -113,7 +115,7 @@ func (p *PostRepositoryStruct) FindPostByID(id *string) (*response.PostResponse,
 		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'DISLIKE' 
 	) AS dislike
 	FROM post
-	WHERE post.account_id = $1
+	WHERE post.id = $1
 	AND post.removed = false
 	GROUP BY post.id;`
 
@@ -130,6 +132,8 @@ func (p *PostRepositoryStruct) FindPostByID(id *string) (*response.PostResponse,
 		&post.Content,
 		&post.CreatedAt,
 		&post.UpdatedAt,
+		&post.Like,
+		&post.Dislike,
 	)
 	if err != nil {
 		return nil, err
@@ -184,7 +188,7 @@ func (p *PostRepositoryStruct) ExistsPostByPostIDAndAccountID(postID, accountID 
 	return &next, nil
 }
 
-func (p *PostRepositoryStruct) FindPostByAccountFollowingByAccountID(accountID *string, page *string) ([]interface{}, error) {
+func (p *PostRepositoryStruct) FindPostByAccountFollowingByAccountID(accountID, page *string) ([]interface{}, error) {
 	sqlStatement := `
 	SELECT post.id, post.account_id, post.content, post.created_at, post.updated_at, 
 	(

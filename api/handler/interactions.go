@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"log"
 	"net/http"
+	"os"
 	"social_network_project/controllers"
 	"social_network_project/controllers/errors"
 	"social_network_project/controllers/validate"
@@ -31,7 +32,7 @@ func RegisterInteractionsHandlers(handler *gin.Engine, interactionsController co
 }
 
 func (a InteractionsAPI) CreateInteraction(c *gin.Context) {
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -98,7 +99,7 @@ func (a InteractionsAPI) CreateInteraction(c *gin.Context) {
 }
 
 func (a InteractionsAPI) UpdateInteraction(c *gin.Context) {
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -147,7 +148,7 @@ func (a InteractionsAPI) UpdateInteraction(c *gin.Context) {
 }
 
 func (a InteractionsAPI) DeleteInteraction(c *gin.Context) {
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",

@@ -6,23 +6,29 @@ import (
 	"github.com/google/uuid"
 	"log"
 	"net/http"
+	"os"
+	"social_network_project/cache"
+	"social_network_project/cache/redisDB"
 	"social_network_project/controllers"
 	"social_network_project/controllers/errors"
 	"social_network_project/controllers/validate"
 	"social_network_project/entities"
 	"social_network_project/utils"
+	"strconv"
 	"time"
 )
 
 type AccountsAPI struct {
-	Controller controllers.AccountsController
-	Validate   *validator.Validate
+	Controller  controllers.AccountsController
+	RedisClient *redisDB.RedisClient
+	Validate    *validator.Validate
 }
 
-func RegisterAccountsHandlers(handler *gin.Engine, accountsController controllers.AccountsController) {
+func RegisterAccountsHandlers(handler *gin.Engine, accountsController controllers.AccountsController, redisDB *redisDB.RedisClient) {
 	ac := &AccountsAPI{
-		Controller: accountsController,
-		Validate:   validator.New(),
+		Controller:  accountsController,
+		RedisClient: redisDB,
+		Validate:    validator.New(),
 	}
 
 	handler.POST("/accounts", ac.CreateAccount)
@@ -116,11 +122,22 @@ func (a *AccountsAPI) CreateToken(c *gin.Context) {
 
 func (a *AccountsAPI) GetAccount(c *gin.Context) {
 
-	id, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	id, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
 		})
+		return
+	}
+
+	resCache, err := cache.FindInCache(c.Request, a.RedisClient)
+	switch e := err.(type) {
+	case *errors.CacheNotFoundError:
+		log.Println(e.Error())
+	default:
+		c.JSON(http.StatusOK, resCache)
+		log.Println("Cache")
+
 		return
 	}
 
@@ -138,6 +155,8 @@ func (a *AccountsAPI) GetAccount(c *gin.Context) {
 		}
 	}
 
+	cache.InsertCache(c.Request, account.ToResponse(), a.RedisClient)
+
 	c.JSON(http.StatusOK, account.ToResponse())
 	return
 
@@ -145,7 +164,7 @@ func (a *AccountsAPI) GetAccount(c *gin.Context) {
 
 func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 
-	id, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	id, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -210,7 +229,7 @@ func (a *AccountsAPI) UpdateAccount(c *gin.Context) {
 }
 
 func (a *AccountsAPI) DeleteAccount(c *gin.Context) {
-	id, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	id, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -238,7 +257,7 @@ func (a *AccountsAPI) DeleteAccount(c *gin.Context) {
 
 func (a *AccountsAPI) FollowAccount(c *gin.Context) {
 
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -286,7 +305,7 @@ func (a *AccountsAPI) FollowAccount(c *gin.Context) {
 
 func (a *AccountsAPI) SearchFollowing(c *gin.Context) {
 
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -294,7 +313,25 @@ func (a *AccountsAPI) SearchFollowing(c *gin.Context) {
 		return
 	}
 
-	listOfAccounts, err := a.Controller.FindAccountsFollowing(accountID)
+	resCache, err := cache.FindInCache(c.Request, a.RedisClient)
+	switch e := err.(type) {
+	case *errors.CacheNotFoundError:
+		log.Println(e.Error())
+	default:
+		c.JSON(http.StatusOK, resCache)
+		log.Println("Cache")
+
+		return
+	}
+
+	page := c.DefaultQuery("page", "1")
+	if _, err = strconv.ParseInt(page, 10, 64); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Message": "Page is not a number",
+		})
+		return
+	}
+	listOfAccounts, err := a.Controller.FindAccountsFollowing(accountID, &page)
 	if err != nil {
 		switch e := err.(type) {
 		case *errors.NotFoundAccountIDError:
@@ -306,6 +343,8 @@ func (a *AccountsAPI) SearchFollowing(c *gin.Context) {
 			log.Fatal(err)
 		}
 	}
+
+	cache.InsertCache(c.Request, listOfAccounts, a.RedisClient)
 
 	c.JSON(http.StatusOK, listOfAccounts)
 	return
@@ -313,7 +352,7 @@ func (a *AccountsAPI) SearchFollowing(c *gin.Context) {
 
 func (a *AccountsAPI) SearchFollowers(c *gin.Context) {
 
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -321,7 +360,25 @@ func (a *AccountsAPI) SearchFollowers(c *gin.Context) {
 		return
 	}
 
-	listOfAccounts, err := a.Controller.FindAccountsFollowers(accountID)
+	resCache, err := cache.FindInCache(c.Request, a.RedisClient)
+	switch e := err.(type) {
+	case *errors.CacheNotFoundError:
+		log.Println(e.Error())
+	default:
+		c.JSON(http.StatusOK, resCache)
+		log.Println("Cache")
+
+		return
+	}
+
+	page := c.DefaultQuery("page", "1")
+	if _, err = strconv.ParseInt(page, 10, 64); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Message": "Page is not a number",
+		})
+		return
+	}
+	listOfAccounts, err := a.Controller.FindAccountsFollowers(accountID, &page)
 	if err != nil {
 		switch e := err.(type) {
 		case *errors.NotFoundAccountIDError:
@@ -334,13 +391,15 @@ func (a *AccountsAPI) SearchFollowers(c *gin.Context) {
 		}
 	}
 
+	cache.InsertCache(c.Request, listOfAccounts, a.RedisClient)
+
 	c.JSON(http.StatusOK, listOfAccounts)
 	return
 }
 
 func (a *AccountsAPI) UnfollowAccount(c *gin.Context) {
 
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",

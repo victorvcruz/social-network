@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"social_network_project/controllers/errors"
 	"social_network_project/database/repository"
 	"social_network_project/entities"
@@ -9,7 +10,7 @@ import (
 
 type CommentsController interface {
 	InsertComment(comment *entities.Comment) error
-	FindCommentsByAccountID(accountID, idToGet, postID, commentID *string) ([]interface{}, error)
+	FindCommentsByAccountID(accountID, idToGet, postID, commentID, page *string) ([]interface{}, error)
 	UpdateCommentDataByID(comment *entities.Comment) (*response.CommentResponse, error)
 	RemoveCommentByID(comment *entities.Comment) (*response.CommentResponse, error)
 }
@@ -20,11 +21,11 @@ type CommentsControllerStruct struct {
 	repositoryPost    repository.PostRepository
 }
 
-func NewCommentsController() CommentsController {
+func NewCommentsController(postgresDB *sql.DB) CommentsController {
 	return &CommentsControllerStruct{
-		repositoryComment: repository.NewComentRepository(),
-		repositoryAccount: repository.NewAccountRepository(),
-		repositoryPost:    repository.NewPostRepository(),
+		repositoryComment: repository.NewComentRepository(postgresDB),
+		repositoryAccount: repository.NewAccountRepository(postgresDB),
+		repositoryPost:    repository.NewPostRepository(postgresDB),
 	}
 }
 
@@ -56,7 +57,7 @@ func (c *CommentsControllerStruct) InsertComment(comment *entities.Comment) erro
 	return nil
 }
 
-func (c *CommentsControllerStruct) FindCommentsByAccountID(accountID, idToGet, postID, commentID *string) ([]interface{}, error) {
+func (c *CommentsControllerStruct) FindCommentsByAccountID(accountID, idToGet, postID, commentID, page *string) ([]interface{}, error) {
 
 	existID, err := c.repositoryAccount.ExistsAccountByID(accountID)
 	if err != nil {
@@ -85,6 +86,8 @@ func (c *CommentsControllerStruct) FindCommentsByAccountID(accountID, idToGet, p
 		if !*existID {
 			return nil, &errors.NotFoundPostIDError{}
 		}
+		return c.repositoryComment.FindCommentsByPostOrCommentID(postID, commentID, page)
+
 	}
 
 	if *commentID != "" {
@@ -95,9 +98,10 @@ func (c *CommentsControllerStruct) FindCommentsByAccountID(accountID, idToGet, p
 		if !*existID {
 			return nil, &errors.NotFoundCommentIDError{}
 		}
+		return c.repositoryComment.FindCommentsByPostOrCommentID(postID, commentID, page)
 	}
 
-	return c.repositoryComment.FindCommentsByAccountID(accountID, postID, commentID)
+	return c.repositoryComment.FindCommentsByAccountID(accountID, page)
 }
 
 func (c *CommentsControllerStruct) UpdateCommentDataByID(comment *entities.Comment) (*response.CommentResponse, error) {

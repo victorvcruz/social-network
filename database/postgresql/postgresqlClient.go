@@ -8,9 +8,7 @@ import (
 	"social_network_project/utils"
 )
 
-var Db *sql.DB
-
-func ConnectDatabase() error {
+func ConnectDatabase() (*sql.DB, error) {
 
 	dbUser := utils.GetStringEnvOrElse("POSTGRESQL_USER", "postgres")
 	dbPwd := utils.GetStringEnvOrElse("POSTGRESQL_PASSWORD", "admin")
@@ -23,12 +21,10 @@ func ConnectDatabase() error {
 	db, err := sql.Open("postgres", postgresURI)
 
 	if err != nil {
-		return err
+		return nil, err
 	} else {
 		log.Println("Connected to database " + DBName + "!")
 	}
 
-	Db = db
-
-	return nil
+	return db, nil
 }

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"github.com/golang-jwt/jwt/v4"
 	"log"
 	"os"
@@ -19,8 +20,8 @@ type AccountsController interface {
 	ChangeAccountDataByID(id *string, mapBody map[string]interface{}) error
 	DeleteAccountByID(id *string) (*entities.Account, error)
 	CreateFollow(accountID, accountToFollow *string) (*entities.Account, error)
-	FindAccountsFollowing(accountID *string) ([]interface{}, error)
-	FindAccountsFollowers(accountID *string) ([]interface{}, error)
+	FindAccountsFollowing(accountID, page *string) ([]interface{}, error)
+	FindAccountsFollowers(accountID, page *string) ([]interface{}, error)
 	DeleteFollow(accountID, accountToFollow *string) (*entities.Account, error)
 }
 
@@ -28,9 +29,9 @@ type AccountsControllerStruct struct {
 	repository repository.AccountRepository
 }
 
-func NewAccountsController() AccountsController {
+func NewAccountsController(postgresDB *sql.DB) AccountsController {
 	return &AccountsControllerStruct{
-		repository: repository.NewAccountRepository(),
+		repository: repository.NewAccountRepository(postgresDB),
 	}
 }
 
@@ -183,9 +184,9 @@ func (s *AccountsControllerStruct) CreateFollow(accountID, accountToFollow *stri
 	return accountFollow, nil
 }
 
-func (s *AccountsControllerStruct) FindAccountsFollowing(accountID *string) ([]interface{}, error) {
+func (s *AccountsControllerStruct) FindAccountsFollowing(accountID, page *string) ([]interface{}, error) {
 
-	listOfAccounts, err := s.repository.FindAccountFollowingByAccountID(accountID)
+	listOfAccounts, err := s.repository.FindAccountFollowingByAccountID(accountID, page)
 	if err != nil {
 		return nil, &errors.NotFoundAccountIDError{}
 	}
@@ -193,9 +194,9 @@ func (s *AccountsControllerStruct) FindAccountsFollowing(accountID *string) ([]i
 	return listOfAccounts, nil
 }
 
-func (s *AccountsControllerStruct) FindAccountsFollowers(accountID *string) ([]interface{}, error) {
+func (s *AccountsControllerStruct) FindAccountsFollowers(accountID, page *string) ([]interface{}, error) {
 
-	listOfAccounts, err := s.repository.FindAccountFollowersByAccountID(accountID)
+	listOfAccounts, err := s.repository.FindAccountFollowersByAccountID(accountID, page)
 	if err != nil {
 		return nil, &errors.NotFoundAccountIDError{}
 	}

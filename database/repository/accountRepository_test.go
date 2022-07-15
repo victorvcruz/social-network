@@ -291,7 +291,7 @@ func TestAccountRepositoryStruct_FindAccountFollowingByAccountID(t *testing.T) {
 	defer func() {
 		db.Close()
 	}()
-
+	page := "1"
 	query := `
 		SELECT account.id, account.username, account."name", account.description, account.email,
 		account."password", account."password", account.created_at , account.updated_at, account.deleted 
@@ -305,7 +305,7 @@ func TestAccountRepositoryStruct_FindAccountFollowingByAccountID(t *testing.T) {
 
 	mock.ExpectQuery(query).WithArgs(u.ID).WillReturnRows(rows)
 
-	exist, err := repo.FindAccountFollowingByAccountID(&u.ID)
+	exist, err := repo.FindAccountFollowingByAccountID(&u.ID, &page)
 	assert.Empty(t, exist)
 	assert.Error(t, err)
 }
@@ -317,7 +317,7 @@ func TestAccountRepositoryStruct_FindAccountFollowersByAccountID(t *testing.T) {
 	defer func() {
 		db.Close()
 	}()
-
+	page := "1"
 	query := `
 	SELECT account.id, account.username, account.name, account.description, account.email,
 	account.password, account.created_at , account.updated_at, account.deleted
@@ -331,7 +331,7 @@ func TestAccountRepositoryStruct_FindAccountFollowersByAccountID(t *testing.T) {
 
 	mock.ExpectQuery(query).WithArgs(u.ID).WillReturnRows(rows)
 
-	exist, err := repo.FindAccountFollowingByAccountID(&u.ID)
+	exist, err := repo.FindAccountFollowersByAccountID(&u.ID, &page)
 	assert.Empty(t, exist)
 	assert.Error(t, err)
 }

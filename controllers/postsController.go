@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"social_network_project/controllers/errors"
 	"social_network_project/database/repository"
 	"social_network_project/entities"
@@ -9,7 +10,7 @@ import (
 
 type PostsController interface {
 	InsertPost(post *entities.Post) error
-	FindPostsByAccountID(accountID, idToGet *string) ([]interface{}, error)
+	FindPostsByAccountID(accountID, idToGet, page *string) ([]interface{}, error)
 	UpdatePostDataByID(post *entities.Post) (*response.PostResponse, error)
 	RemovePostByID(post *entities.Post) (*response.PostResponse, error)
 	FindPostByAccountFollowingByAccountID(accountID *string, page *string) ([]interface{}, error)
@@ -20,10 +21,10 @@ type PostsControllerStruct struct {
 	repositoryAccount repository.AccountRepository
 }
 
-func NewPostsController() PostsController {
+func NewPostsController(postgresDB *sql.DB) PostsController {
 	return &PostsControllerStruct{
-		repositoryPost:    repository.NewPostRepository(),
-		repositoryAccount: repository.NewAccountRepository(),
+		repositoryPost:    repository.NewPostRepository(postgresDB),
+		repositoryAccount: repository.NewAccountRepository(postgresDB),
 	}
 }
 
@@ -37,7 +38,7 @@ func (p PostsControllerStruct) InsertPost(post *entities.Post) error {
 	return nil
 }
 
-func (p PostsControllerStruct) FindPostsByAccountID(accountID, idToGet *string) ([]interface{}, error) {
+func (p PostsControllerStruct) FindPostsByAccountID(accountID, idToGet, page *string) ([]interface{}, error) {
 
 	existID, err := p.repositoryAccount.ExistsAccountByID(accountID)
 	if err != nil {
@@ -56,10 +57,10 @@ func (p PostsControllerStruct) FindPostsByAccountID(accountID, idToGet *string) 
 			return nil, &errors.NotFoundAccountIDError{}
 		}
 
-		return p.repositoryPost.FindPostsByAccountID(idToGet)
+		return p.repositoryPost.FindPostsByAccountID(idToGet, page)
 	}
 
-	return p.repositoryPost.FindPostsByAccountID(accountID)
+	return p.repositoryPost.FindPostsByAccountID(accountID, page)
 }
 
 func (p PostsControllerStruct) UpdatePostDataByID(post *entities.Post) (*response.PostResponse, error) {

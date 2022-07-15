@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"social_network_project/database/postgresql"
 	"social_network_project/entities"
 	"time"
 )
@@ -22,8 +21,8 @@ type InteractionRepositoryStruct struct {
 	Db *sql.DB
 }
 
-func NewInteractionRepository() InteractionRepository {
-	return &InteractionRepositoryStruct{postgresql.Db}
+func NewInteractionRepository(postgresDB *sql.DB) InteractionRepository {
+	return &InteractionRepositoryStruct{postgresDB}
 }
 
 func (p *InteractionRepositoryStruct) InsertInteraction(interaction *entities.Interaction) error {

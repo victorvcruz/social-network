@@ -1,4 +1,4 @@
-package redis
+package redisDB
 
 import (
 	"github.com/go-redis/redis/v8"
@@ -8,11 +8,13 @@ import (
 	"time"
 )
 
-var client *redis.Client
+type RedisClient struct {
+	Client *redis.Client
+}
 
-func ConnectToDatabase() error {
+func ConnectToDatabase() (*redis.Client, error) {
 
-	client = redis.NewClient(&redis.Options{
+	client := redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT"),
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
@@ -20,15 +22,15 @@ func ConnectToDatabase() error {
 
 	_, err := client.Ping(client.Context()).Result()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Println("Redis Connected")
-	return nil
+	return client, nil
 }
 
-func InsertInDatabase(key string, value string) error {
-	err := client.Set(client.Context(), key, value, 5*time.Minute).Err()
+func (r *RedisClient) InsertInDatabase(key string, value string) error {
+	err := r.Client.Set(r.Client.Context(), key, value, 5*time.Minute).Err()
 	if err != nil {
 		return err
 	}
@@ -36,8 +38,8 @@ func InsertInDatabase(key string, value string) error {
 	return nil
 }
 
-func FindInDatabase(key string) (string, error) {
-	val, err := client.Get(client.Context(), key).Result()
+func (r *RedisClient) FindInDatabase(key string) (string, error) {
+	val, err := r.Client.Get(r.Client.Context(), key).Result()
 	if err != nil {
 		return "", &errors.CacheNotFoundError{}
 	}

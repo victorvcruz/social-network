@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"social_network_project/controllers/errors"
 	"social_network_project/database/repository"
 	"social_network_project/entities"
@@ -15,17 +16,15 @@ type InteractionsController interface {
 
 type InteractionsControllerStruct struct {
 	repositoryAccount     repository.AccountRepository
-	repositoryPost        repository.PostRepository
 	repositoryComment     repository.CommentRepository
 	repositoryInteraction repository.InteractionRepository
 }
 
-func NewInteractionsController() InteractionsController {
+func NewInteractionsController(postgresDB *sql.DB) InteractionsController {
 	return &InteractionsControllerStruct{
-		repositoryAccount:     repository.NewAccountRepository(),
-		repositoryPost:        repository.NewPostRepository(),
-		repositoryComment:     repository.NewComentRepository(),
-		repositoryInteraction: repository.NewInteractionRepository(),
+		repositoryAccount:     repository.NewAccountRepository(postgresDB),
+		repositoryComment:     repository.NewComentRepository(postgresDB),
+		repositoryInteraction: repository.NewInteractionRepository(postgresDB),
 	}
 }
 

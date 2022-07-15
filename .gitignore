@@ -1,1 +1,3 @@
-db/volume
+postgres_data/volume
+redis_data
+
