@@ -68,10 +68,39 @@ func TestCommentRepositoryStruct_ExistsCommentByID(t *testing.T) {
 
 func TestCommentRepositoryStruct_FindCommentsByAccountID(t *testing.T) {
 
-	ids := map[string]interface{}{
-		"post_id":    "7d077271-fc44-4792-9ba9-ff15154f6cca",
-		"comment_id": "05f508c6-cc9b-4942-a62f-0aa08d01ed45",
-	}
+	db, mock := NewMock()
+	repo := CommentRepositoryStruct{db}
+
+	defer func() {
+		db.Close()
+	}()
+	page := "1"
+	query :=
+		`SELECT comment.id, comment.account_id, comment.post_id, comment.comment_id, comment.content, comment.created_at, comment.updated_at,
+		(
+			SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'LIKE'
+	) AS like,
+		(
+			SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'DISLIKE'
+	) AS dislike
+	FROM comment
+	WHERE comment.account_id = $1
+	AND comment.removed = false
+	Order By comment.created_at
+	OFFSET ($2 - 1) * 10
+	FETCH NEXT 10 ROWS ONLY;`
+
+	rows := sqlmock.NewRows([]string{"id", "account_id", "post_id", "comment_id", "content", "created_at", "updated_at"}).
+		AddRow(c.ID, c.AccountID, c.PostID, c.CommentID, c.Content, p.CreatedAt, p.UpdatedAt)
+
+	mock.ExpectQuery(query).WithArgs(c.ID).WillReturnRows(rows)
+
+	account, err := repo.FindCommentsByAccountID(&c.AccountID, &page)
+	assert.Empty(t, account)
+	assert.Error(t, err)
+}
+
+func TestCommentRepositoryStruct_FindCommentsByPostOrCommentID(t *testing.T) {
 
 	db, mock := NewMock()
 	repo := CommentRepositoryStruct{db}
@@ -79,59 +108,41 @@ func TestCommentRepositoryStruct_FindCommentsByAccountID(t *testing.T) {
 	defer func() {
 		db.Close()
 	}()
-
-	query := dinamicQueryFindCommentsByAccountID(ids)
+	page := "1"
+	query :=
+		`SELECT comment.id, comment.account_id, comment.post_id, comment.comment_id, comment.content, comment.created_at, comment.updated_at,
+		(
+			SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'LIKE'
+	) AS like,
+		(
+			SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'DISLIKE'
+	) AS dislike
+	FROM comment
+	WHERE ` + "comment.comment_id = $1 " +
+			`AND comment.removed = false
+	Order By comment.created_at
+	OFFSET ($2 - 1) * 10
+	FETCH NEXT 10 ROWS ONLY;`
 
 	rows := sqlmock.NewRows([]string{"id", "account_id", "post_id", "comment_id", "content", "created_at", "updated_at"}).
 		AddRow(c.ID, c.AccountID, c.PostID, c.CommentID, c.Content, p.CreatedAt, p.UpdatedAt)
 
 	mock.ExpectQuery(query).WithArgs(c.ID).WillReturnRows(rows)
+	t.Run("commentID nil", func(t *testing.T) {
+		postID := "09c17021-73a7-43e0-a63b-a237d1f3b85e"
+		commentID := ""
+		account, err := repo.FindCommentsByPostOrCommentID(&postID, &commentID, &page)
+		assert.Empty(t, account)
+		assert.Error(t, err)
+	})
+	t.Run("postID nil", func(t *testing.T) {
+		postID := ""
+		commentID := "09c17021-73a7-43e0-a63b-a237d1f3b85e"
+		account, err := repo.FindCommentsByPostOrCommentID(&postID, &commentID, &page)
+		assert.Empty(t, account)
+		assert.Error(t, err)
+	})
 
-	account, err := repo.FindCommentsByAccountID(&c.AccountID, &c.PostID, &c.CommentID.String)
-	assert.Empty(t, account)
-	assert.Error(t, err)
-}
-
-func TestNewComentRepository_dinamicQueryFindCommentsByAccountID(t *testing.T) {
-	ids1 := map[string]interface{}{
-		"post_id":    "c7f6c53b-aa5c-4f24-9f5f-d3eeeedd408d",
-		"comment_id": "26c941e5-6a6d-4574-a7ee-6df54c7ace98",
-	}
-
-	stringQueryExpected1 := `
-		SELECT comment.id, comment.account_id, comment.post_id, comment.comment_id, comment.content, comment.created_at, comment.updated_at, 
-	(
-		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'LIKE' 
-	) AS like,
-	(
-		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'DISLIKE' 
-	) AS dislike
-	FROM comment
-	WHERE comment.account_id = $1
-	AND comment.removed = false AND "post_id" = 'c7f6c53b-aa5c-4f24-9f5f-d3eeeedd408d' AND "comment_id" = '26c941e5-6a6d-4574-a7ee-6df54c7ace98' GROUP BY comment.id;`
-	stringQuery1 := dinamicQueryFindCommentsByAccountID(ids1)
-
-	assert.Equal(t, len(stringQueryExpected1), len(stringQuery1))
-
-	ids2 := map[string]interface{}{
-		"post_id":    "",
-		"comment_id": "",
-	}
-
-	stringQueryExpected2 := `
-		SELECT comment.id, comment.account_id, comment.post_id, comment.comment_id, comment.content, comment.created_at, comment.updated_at, 
-	(
-		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'LIKE' 
-	) AS like,
-	(
-		SELECT count(1) FROM interaction i WHERE i.comment_id = comment.id AND i."type" = 'DISLIKE' 
-	) AS dislike
-	FROM comment
-	WHERE comment.account_id = $1
-	AND comment.removed = false GROUP BY comment.id;`
-	stringQuery2 := dinamicQueryFindCommentsByAccountID(ids2)
-
-	assert.Equal(t, len(stringQueryExpected2), len(stringQuery2))
 }
 
 func TestCommentRepositoryStruct_UpdateCommentDataByID(t *testing.T) {

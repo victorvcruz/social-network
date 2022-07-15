@@ -17,6 +17,7 @@ CREATE TABLE account_follow (
 	account_id VARCHAR NOT NULL,
 	account_id_followed VARCHAR NOT NULL,
 	unfollowed BOOLEAN NOT NULL,
+	followed_at TIMESTAMP NOT NULL,
 	FOREIGN KEY (account_id) REFERENCES account (id),
 	FOREIGN KEY (account_id_followed) REFERENCES account (id)
 );

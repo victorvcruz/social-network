@@ -51,6 +51,7 @@ func TestPostRepositoryStruct_FindPostsByAccountID(t *testing.T) {
 		db.Close()
 	}()
 
+	page := "1"
 	query := `
 	SELECT post.id, post.account_id, post.content, post.created_at, post.updated_at, 
 	(
@@ -62,14 +63,16 @@ func TestPostRepositoryStruct_FindPostsByAccountID(t *testing.T) {
 	FROM post
 	WHERE post.account_id = $1
 	AND post.removed = false
-	GROUP BY post.id;`
+	Order By post.created_at 
+	OFFSET ($2 - 1) * 10
+	FETCH NEXT 10 ROWS ONLY;`
 
 	rows := sqlmock.NewRows([]string{"id", "account_id", "content", "created_at", "updated_at"}).
 		AddRow(p.ID, p.AccountID, p.Content, p.CreatedAt, p.UpdatedAt)
 
 	mock.ExpectQuery(query).WithArgs(p.ID).WillReturnRows(rows)
 
-	account, err := repo.FindPostsByAccountID(&p.ID)
+	account, err := repo.FindPostsByAccountID(&p.ID, &page)
 	assert.Empty(t, account)
 	assert.Error(t, err)
 }
@@ -115,7 +118,7 @@ func TestPostRepositoryStruct_FindPostByID(t *testing.T) {
 		SELECT count(1) FROM interaction i WHERE i.post_id = post.id AND i."type" = 'DISLIKE' 
 	) AS dislike
 	FROM post
-	WHERE post.account_id = $1
+	WHERE post.id = $1
 	AND post.removed = false
 	GROUP BY post.id;`
 

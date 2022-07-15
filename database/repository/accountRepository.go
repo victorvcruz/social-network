@@ -3,9 +3,9 @@ package repository
 import (
 	"database/sql"
 	"fmt"
-	"social_network_project/database/postgresql"
 	"social_network_project/entities"
 	"strings"
+	"time"
 )
 
 type AccountRepository interface {
@@ -19,8 +19,8 @@ type AccountRepository interface {
 	ExistsAccountByUsername(username *string) (*bool, error)
 	ExistsAccountByEmail(email *string) (*bool, error)
 	InsertAccountFollow(accountID, accountFollow *string) error
-	FindAccountFollowingByAccountID(accountID *string) ([]interface{}, error)
-	FindAccountFollowersByAccountID(accountID *string) ([]interface{}, error)
+	FindAccountFollowingByAccountID(accountID, page *string) ([]interface{}, error)
+	FindAccountFollowersByAccountID(accountID, page *string) ([]interface{}, error)
 	ExistsFollowByAccountIDAndAccountFollowedID(accountID, accountToFollow *string) (*bool, error)
 	DeleteAccountFollow(accountID, accountFollow *string) error
 }
@@ -29,8 +29,8 @@ type AccountRepositoryStruct struct {
 	Db *sql.DB
 }
 
-func NewAccountRepository() AccountRepository {
-	return &AccountRepositoryStruct{postgresql.Db}
+func NewAccountRepository(postgresDB *sql.DB) AccountRepository {
+	return &AccountRepositoryStruct{postgresDB}
 }
 
 func (p *AccountRepositoryStruct) InsertAccount(account *entities.Account) error {
@@ -206,11 +206,12 @@ func (p *AccountRepositoryStruct) ExistsAccountByEmail(email *string) (*bool, er
 }
 
 func (p *AccountRepositoryStruct) InsertAccountFollow(accountID, accountFollow *string) error {
+	followedAt := time.Now().UTC().Format("2006-01-02")
 	sqlStatement := `
-		INSERT INTO account_follow (account_id, account_id_followed, unfollowed)
-		VALUES ($1, $2, false)`
+		INSERT INTO account_follow (account_id, account_id_followed, followed_at, unfollowed)
+		VALUES ($1, $2, $3, false)`
 
-	row := p.Db.QueryRow(sqlStatement, accountID, accountFollow)
+	row := p.Db.QueryRow(sqlStatement, accountID, accountFollow, followedAt)
 	if row.Err() != nil {
 		return row.Err()
 	}
@@ -218,16 +219,19 @@ func (p *AccountRepositoryStruct) InsertAccountFollow(accountID, accountFollow *
 	return nil
 }
 
-func (p *AccountRepositoryStruct) FindAccountFollowingByAccountID(accountID *string) ([]interface{}, error) {
+func (p *AccountRepositoryStruct) FindAccountFollowingByAccountID(accountID, page *string) ([]interface{}, error) {
 	sqlStatement := `
 		SELECT account.id, account.username, account.name, account.description, account.email,
 		account.password, account.created_at , account.updated_at, account.deleted 
 		FROM account_follow
 		INNER JOIN account ON account_follow.account_id = account.id
 		WHERE account_follow.account_id = $1
-		AND account_follow.unfollowed = false`
+		AND account_follow.unfollowed = false
+		Order By account_follow.followed_at 
+		OFFSET ($2 - 1) * 10
+		FETCH NEXT 10 ROWS ONLY;`
 
-	rows, err := p.Db.Query(sqlStatement, accountID)
+	rows, err := p.Db.Query(sqlStatement, accountID, page)
 	if err != nil {
 		return nil, err
 	}
@@ -258,16 +262,19 @@ func (p *AccountRepositoryStruct) FindAccountFollowingByAccountID(accountID *str
 	return list, nil
 }
 
-func (p *AccountRepositoryStruct) FindAccountFollowersByAccountID(accountID *string) ([]interface{}, error) {
+func (p *AccountRepositoryStruct) FindAccountFollowersByAccountID(accountID, page *string) ([]interface{}, error) {
 	sqlStatement := `
 	SELECT account.id, account.username, account.name, account.description, account.email,
 	account.password, account.created_at , account.updated_at, account.deleted
 	FROM account_follow
 	INNER JOIN account ON account_follow.account_id_followed = account.id
 	WHERE account_follow.account_id_followed = $1
-	AND account_follow.unfollowed = false`
+	AND account_follow.unfollowed = false
+	Order By account_follow.followed_at 
+	OFFSET ($2 - 1) * 10
+	FETCH NEXT 10 ROWS ONLY;`
 
-	rows, err := p.Db.Query(sqlStatement, accountID)
+	rows, err := p.Db.Query(sqlStatement, accountID, page)
 	if err != nil {
 		return nil, err
 	}

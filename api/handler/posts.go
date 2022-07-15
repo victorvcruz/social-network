@@ -6,6 +6,9 @@ import (
 	"github.com/google/uuid"
 	"log"
 	"net/http"
+	"os"
+	"social_network_project/cache"
+	"social_network_project/cache/redisDB"
 	"social_network_project/controllers"
 	"social_network_project/controllers/errors"
 	"social_network_project/controllers/validate"
@@ -16,14 +19,16 @@ import (
 )
 
 type PostsAPI struct {
-	Controller controllers.PostsController
-	Validate   *validator.Validate
+	Controller  controllers.PostsController
+	RedisClient *redisDB.RedisClient
+	Validate    *validator.Validate
 }
 
-func RegisterPostsHandlers(handler *gin.Engine, postsController controllers.PostsController) {
+func RegisterPostsHandlers(handler *gin.Engine, postsController controllers.PostsController, redisDB *redisDB.RedisClient) {
 	ac := &PostsAPI{
-		Controller: postsController,
-		Validate:   validator.New(),
+		Controller:  postsController,
+		RedisClient: redisDB,
+		Validate:    validator.New(),
 	}
 
 	handler.POST("/posts", ac.CreatePost)
@@ -35,7 +40,7 @@ func RegisterPostsHandlers(handler *gin.Engine, postsController controllers.Post
 
 func (a *PostsAPI) CreatePost(c *gin.Context) {
 
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -78,7 +83,7 @@ func (a *PostsAPI) CreatePost(c *gin.Context) {
 
 func (a *PostsAPI) GetPost(c *gin.Context) {
 
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -86,9 +91,27 @@ func (a *PostsAPI) GetPost(c *gin.Context) {
 		return
 	}
 
-	idToGet := c.DefaultQuery("account_id", "")
+	resCache, err := cache.FindInCache(c.Request, a.RedisClient)
+	switch e := err.(type) {
+	case *errors.CacheNotFoundError:
+		log.Println(e.Error())
+	default:
+		c.JSON(http.StatusOK, resCache)
+		log.Println("Cache")
 
-	postsOfAccount, err := a.Controller.FindPostsByAccountID(accountID, &idToGet)
+		return
+	}
+
+	idToGet := c.DefaultQuery("account_id", "")
+	page := c.DefaultQuery("page", "1")
+	if _, err = strconv.ParseInt(page, 10, 64); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Message": "Page is not a number",
+		})
+		return
+	}
+
+	postsOfAccount, err := a.Controller.FindPostsByAccountID(accountID, &idToGet, &page)
 	if err != nil {
 		switch e := err.(type) {
 		case *errors.NotFoundAccountIDError:
@@ -102,12 +125,13 @@ func (a *PostsAPI) GetPost(c *gin.Context) {
 		}
 	}
 
+	cache.InsertCache(c.Request, postsOfAccount, a.RedisClient)
 	c.JSON(http.StatusOK, postsOfAccount)
 	return
 }
 
 func (a *PostsAPI) UpdatePost(c *gin.Context) {
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -156,7 +180,7 @@ func (a *PostsAPI) UpdatePost(c *gin.Context) {
 }
 
 func (a *PostsAPI) DeletePost(c *gin.Context) {
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
@@ -207,11 +231,22 @@ func (a *PostsAPI) DeletePost(c *gin.Context) {
 
 func (a *PostsAPI) SearchPostByAccountFollowing(c *gin.Context) {
 
-	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get("BearerToken"))
+	accountID, err := utils.DecodeTokenAndReturnID(c.Request.Header.Get(os.Getenv("JWT_TOKEN_HEADER")))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"Message": "Token Invalid",
 		})
+		return
+	}
+
+	resCache, err := cache.FindInCache(c.Request, a.RedisClient)
+	switch e := err.(type) {
+	case *errors.CacheNotFoundError:
+		log.Println(e.Error())
+	default:
+		c.JSON(http.StatusOK, resCache)
+		log.Println("Cache")
+
 		return
 	}
 
@@ -236,6 +271,7 @@ func (a *PostsAPI) SearchPostByAccountFollowing(c *gin.Context) {
 		}
 	}
 
+	cache.InsertCache(c.Request, postsOfAccount, a.RedisClient)
 	c.JSON(http.StatusOK, postsOfAccount)
 	return
 }
