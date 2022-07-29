@@ -7,7 +7,7 @@ redis_data
 # volume of RabbitMQ
 rabbitmq_data
 
-# jetbrains files
+# jetbrains IDE
 .idea
 
 
