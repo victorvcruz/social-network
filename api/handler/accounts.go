@@ -39,7 +39,7 @@ func RegisterAccountsHandlers(handler *gin.Engine, accountsController controller
 	handler.POST("/accounts/follows", ac.FollowAccount)
 	handler.GET("/accounts/following", ac.SearchFollowing)
 	handler.GET("/accounts/follower", ac.SearchFollowers)
-	handler.DELETE("/accounts/unfollow", ac.UnfollowAccount)
+	handler.DELETE("/accounts/follows", ac.UnfollowAccount)
 
 }
 
