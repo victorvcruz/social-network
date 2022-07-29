@@ -6,6 +6,7 @@ import (
 	"social_network_project/database/repository"
 	"social_network_project/entities"
 	"social_network_project/entities/response"
+	message_broker "social_network_project/message-broker"
 )
 
 type InteractionsController interface {
@@ -18,13 +19,15 @@ type InteractionsControllerStruct struct {
 	repositoryAccount     repository.AccountRepository
 	repositoryComment     repository.CommentRepository
 	repositoryInteraction repository.InteractionRepository
+	rabbitControl         *message_broker.NotificationControl
 }
 
-func NewInteractionsController(postgresDB *sql.DB) InteractionsController {
+func NewInteractionsController(postgresDB *sql.DB, rabbitmq *message_broker.NotificationControl) InteractionsController {
 	return &InteractionsControllerStruct{
 		repositoryAccount:     repository.NewAccountRepository(postgresDB),
 		repositoryComment:     repository.NewComentRepository(postgresDB),
 		repositoryInteraction: repository.NewInteractionRepository(postgresDB),
+		rabbitControl:         rabbitmq,
 	}
 }
 
@@ -70,6 +73,7 @@ func (i InteractionsControllerStruct) InsertInteraction(interaction *entities.In
 		return &errors.NotFoundPostIDError{}
 	}
 
+	i.rabbitControl.SendMessage(message_broker.CreateNotificationJson("Interaction", interaction.ID))
 	return nil
 }
 

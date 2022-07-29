@@ -10,6 +10,7 @@ import (
 	"social_network_project/database/repository"
 	"social_network_project/entities"
 	"social_network_project/entities/response"
+	message_broker "social_network_project/message-broker"
 	"time"
 )
 
@@ -26,12 +27,14 @@ type AccountsController interface {
 }
 
 type AccountsControllerStruct struct {
-	repository repository.AccountRepository
+	repository    repository.AccountRepository
+	rabbitControl *message_broker.NotificationControl
 }
 
-func NewAccountsController(postgresDB *sql.DB) AccountsController {
+func NewAccountsController(postgresDB *sql.DB, rabbitmq *message_broker.NotificationControl) AccountsController {
 	return &AccountsControllerStruct{
-		repository: repository.NewAccountRepository(postgresDB),
+		repository:    repository.NewAccountRepository(postgresDB),
+		rabbitControl: rabbitmq,
 	}
 }
 
@@ -181,6 +184,7 @@ func (s *AccountsControllerStruct) CreateFollow(accountID, accountToFollow *stri
 		return nil, &errors.NotFoundAccountIDError{}
 	}
 
+	s.rabbitControl.SendMessage(message_broker.CreateNotificationJson("FollowAccount", *accountToFollow))
 	return accountFollow, nil
 }
 

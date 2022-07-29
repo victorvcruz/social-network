@@ -7,6 +7,7 @@ import (
 	"social_network_project/api"
 	"social_network_project/cache/redisDB"
 	"social_network_project/database/postgresql"
+	"social_network_project/message-broker/rabbitmq"
 )
 
 func main() {
@@ -25,7 +26,19 @@ func main() {
 		log.Fatal("Error connecting database redis")
 	}
 
-	api := api.InitAPI(postgresqlDB, redisDB)
+	rabbitConn, err := rabbitmq.ConnectToMessageBroker()
+	if err != nil {
+		log.Fatal("Error connecting message-broker rabbitMQ")
+	}
+
+	//rabbitmq.SendMessage()
+	//rabbitmq.SendMessage()
+	//rabbitmq.SendMessage()
+	//rabbitmq.SendMessage()
+	//rabbitmq.ConsumerMessage()
+
+	api := api.InitAPI(postgresqlDB, redisDB, rabbitConn)
 
 	api.Run(":" + os.Getenv("API_PORT"))
+
 }

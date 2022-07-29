@@ -23,6 +23,8 @@ type AccountRepository interface {
 	FindAccountFollowersByAccountID(accountID, page *string) ([]interface{}, error)
 	ExistsFollowByAccountIDAndAccountFollowedID(accountID, accountToFollow *string) (*bool, error)
 	DeleteAccountFollow(accountID, accountFollow *string) error
+	FindAccountEmailFollowersByAccountID(id *string) ([]interface{}, error)
+	FindAccountEmailByID(id *string) ([]interface{}, error)
 }
 
 type AccountRepositoryStruct struct {
@@ -38,10 +40,10 @@ func (p *AccountRepositoryStruct) InsertAccount(account *entities.Account) error
 		INSERT INTO account (id, username, name, description, email, password, created_at, updated_at, deleted)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	row := p.Db.QueryRow(sqlStatement, account.ID, account.Username, account.Name, account.Description,
+	_, err := p.Db.Exec(sqlStatement, account.ID, account.Username, account.Name, account.Description,
 		account.Email, account.Password, account.CreatedAt, account.UpdatedAt, account.Deleted)
-	if row.Err() != nil {
-		return row.Err()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -267,7 +269,7 @@ func (p *AccountRepositoryStruct) FindAccountFollowersByAccountID(accountID, pag
 	SELECT account.id, account.username, account.name, account.description, account.email,
 	account.password, account.created_at , account.updated_at, account.deleted
 	FROM account_follow
-	INNER JOIN account ON account_follow.account_id_followed = account.id
+	INNER JOIN account ON account_follow.account_id = account.id
 	WHERE account_follow.account_id_followed = $1
 	AND account_follow.unfollowed = false
 	Order By account_follow.followed_at 
@@ -335,4 +337,57 @@ func (p *AccountRepositoryStruct) ExistsFollowByAccountIDAndAccountFollowedID(ac
 
 	next := rows.Next()
 	return &next, nil
+}
+
+func (p *AccountRepositoryStruct) FindAccountEmailFollowersByAccountID(id *string) ([]interface{}, error) {
+	sqlStatement := `
+	SELECT account.email
+	FROM account_follow
+	INNER JOIN account ON account_follow.account_id = account.id
+	WHERE account_follow.account_id_followed = $1
+	AND account_follow.unfollowed = false;`
+
+	rows, err := p.Db.Query(sqlStatement, id)
+	if err != nil {
+		return nil, err
+	}
+
+	list := []interface{}{}
+	var email string
+	for rows.Next() {
+		err = rows.Scan(
+			&email,
+		)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, email)
+	}
+
+	return list, nil
+}
+
+func (p *AccountRepositoryStruct) FindAccountEmailByID(id *string) ([]interface{}, error) {
+	sqlStatement := `
+	SELECT account.email
+	FROM account
+	WHERE account.id = $1`
+	rows, err := p.Db.Query(sqlStatement, id)
+	if err != nil {
+		return nil, err
+	}
+
+	list := []interface{}{}
+	var email string
+	for rows.Next() {
+		err = rows.Scan(
+			&email,
+		)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, email)
+	}
+
+	return list, nil
 }

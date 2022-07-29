@@ -6,6 +6,7 @@ import (
 	"social_network_project/database/repository"
 	"social_network_project/entities"
 	"social_network_project/entities/response"
+	message_broker "social_network_project/message-broker"
 )
 
 type PostsController interface {
@@ -19,12 +20,14 @@ type PostsController interface {
 type PostsControllerStruct struct {
 	repositoryPost    repository.PostRepository
 	repositoryAccount repository.AccountRepository
+	rabbitControl     *message_broker.NotificationControl
 }
 
-func NewPostsController(postgresDB *sql.DB) PostsController {
+func NewPostsController(postgresDB *sql.DB, rabbitmq *message_broker.NotificationControl) PostsController {
 	return &PostsControllerStruct{
 		repositoryPost:    repository.NewPostRepository(postgresDB),
 		repositoryAccount: repository.NewAccountRepository(postgresDB),
+		rabbitControl:     rabbitmq,
 	}
 }
 
@@ -35,6 +38,7 @@ func (p PostsControllerStruct) InsertPost(post *entities.Post) error {
 		return &errors.NotFoundAccountIDError{}
 	}
 
+	p.rabbitControl.SendMessage(message_broker.CreateNotificationJson("Post", post.AccountID))
 	return nil
 }
 
