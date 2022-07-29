@@ -1,3 +1,13 @@
-postgres_data/volume
+# volume of PostgreSQL
+postgres_data
+
+# volume of Redis
 redis_data
+
+# volume of RabbitMQ
+rabbitmq_data
+
+# jetbrains files
+.idea
+
 
