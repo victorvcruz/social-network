@@ -15,6 +15,8 @@ type InteractionRepository interface {
 	RemoveInteractionByID(interactionID, accountID *string) error
 	ExistsInteractionByPostIDAndAccountID(postID, accountID *string) (*bool, error)
 	ExistsInteractionByCommentIDAndAccountID(commentID, accountID *string) (*bool, error)
+	FindAccountEmailOfPostByInteractionID(interactionID *string) ([]interface{}, error)
+	FindAccountEmailOfCommentByInteractionID(interactionID *string) ([]interface{}, error)
 }
 
 type InteractionRepositoryStruct struct {
@@ -103,18 +105,21 @@ func (p *InteractionRepositoryStruct) FindInteractionByID(id *string) (*entities
 	rows.Next()
 
 	var interaction entities.Interaction
+	var typeStr string
 	err = rows.Scan(
 		&interaction.ID,
 		&interaction.AccountID,
 		&interaction.PostID,
 		&interaction.CommentID,
-		&interaction.Type,
+		&typeStr,
 		&interaction.CreatedAt,
 		&interaction.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
+
+	interaction.Type, _ = entities.ParseString(typeStr)
 
 	return &interaction, nil
 }
@@ -164,4 +169,60 @@ func (p *InteractionRepositoryStruct) ExistsInteractionByCommentIDAndAccountID(c
 
 	next := rows.Next()
 	return &next, nil
+}
+
+func (p *InteractionRepositoryStruct) FindAccountEmailOfPostByInteractionID(interactionID *string) ([]interface{}, error) {
+	sqlStatement := `
+	SELECT account.email
+	FROM interaction
+	INNER JOIN post ON post.id = interaction.post_id 
+	INNER JOIN account ON account.id = post.account_id
+	WHERE interaction.id = $1`
+
+	rows, err := p.Db.Query(sqlStatement, interactionID)
+	if err != nil {
+		return nil, err
+	}
+
+	list := []interface{}{}
+	var emailOfPost string
+	rows.Next()
+	err = rows.Scan(
+		&emailOfPost,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	list = append(list, emailOfPost)
+
+	return list, nil
+}
+
+func (p *InteractionRepositoryStruct) FindAccountEmailOfCommentByInteractionID(interactionID *string) ([]interface{}, error) {
+	sqlStatement := `
+	SELECT account.email
+	FROM interaction
+	INNER JOIN comment ON comment.id = interaction.comment_id  
+	INNER JOIN account ON account.id = comment.account_id
+	WHERE interaction.id = $1`
+
+	rows, err := p.Db.Query(sqlStatement, interactionID)
+	if err != nil {
+		return nil, err
+	}
+
+	list := []interface{}{}
+	var emailOfPost string
+	rows.Next()
+	err = rows.Scan(
+		&emailOfPost,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	list = append(list, emailOfPost)
+
+	return list, nil
 }

@@ -1,16 +1,17 @@
 package message_broker
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/streadway/amqp"
 )
 
-type RabbitControl struct {
+type NotificationControl struct {
 	Conn                   *amqp.Connection
 	NotificationController *NotificationController
 }
 
-func (r *RabbitControl) SendMessage(message string) {
+func (r *NotificationControl) SendMessage(message string) {
 
 	ch, err := r.Conn.Channel()
 	if err != nil {
@@ -51,7 +52,7 @@ func (r *RabbitControl) SendMessage(message string) {
 
 }
 
-func (r *RabbitControl) ConsumerMessage() {
+func (r *NotificationControl) ConsumerMessage() {
 	ch, err := r.Conn.Channel()
 	if err != nil {
 		fmt.Println(err)
@@ -75,7 +76,9 @@ func (r *RabbitControl) ConsumerMessage() {
 	forever := make(chan bool)
 	go func() {
 		for d := range msgs {
-			r.NotificationController.HandlerNotification(string(d.Body))
+			n := &Notification{}
+			json.Unmarshal(d.Body, n)
+			r.NotificationController.HandlerNotification(n)
 			fmt.Printf("Recieved Message: %s\n", d.Body)
 		}
 	}()

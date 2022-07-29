@@ -16,6 +16,8 @@ type CommentRepository interface {
 	FindCommentByID(id *string) (*entities.Comment, error)
 	RemoveCommentByID(commentID, accountID *string) error
 	ExistsCommentByCommentIDAndAccountID(commentID, accountID *string) (*bool, error)
+	FindAccountEmailOfPostByCommentID(commentID *string) ([]interface{}, error)
+	FindAccountEmailOfPostAndCommentByCommentID(commentID *string) ([]interface{}, error)
 }
 
 type CommentRepositoryStruct struct {
@@ -237,4 +239,69 @@ func (p *CommentRepositoryStruct) ExistsCommentByCommentIDAndAccountID(commentID
 
 	next := rows.Next()
 	return &next, nil
+}
+
+func (p *CommentRepositoryStruct) FindAccountEmailOfPostByCommentID(commentID *string) ([]interface{}, error) {
+	sqlStatement := `
+		SELECT account.email
+		FROM comment
+		INNER JOIN post ON post.id = comment.post_id 
+		INNER JOIN account ON account.id = post.account_id
+		WHERE comment.id = $1`
+
+	rows, err := p.Db.Query(sqlStatement, commentID)
+	if err != nil {
+		return nil, err
+	}
+
+	list := []interface{}{}
+	var emailOfPost string
+	rows.Next()
+	err = rows.Scan(
+		&emailOfPost,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	list = append(list, emailOfPost)
+
+	return list, nil
+}
+
+func (p *CommentRepositoryStruct) FindAccountEmailOfPostAndCommentByCommentID(commentID *string) ([]interface{}, error) {
+	sqlStatement := `
+	SELECT account.email,	
+	(
+	SELECT account.email 
+	FROM comment c
+	INNER JOIN account ON account.id = comment.account_id
+	WHERE c.id = comment.id
+	) AS email2
+	FROM comment
+	INNER JOIN post ON post.id = comment.post_id 
+	INNER JOIN account ON account.id = post.account_id
+	WHERE comment.id = $1`
+
+	rows, err := p.Db.Query(sqlStatement, commentID)
+	if err != nil {
+		return nil, err
+	}
+
+	list := []interface{}{}
+	var emailOfPost string
+	var emailOfComment string
+
+	rows.Next()
+	err = rows.Scan(
+		&emailOfPost,
+		&emailOfComment,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	list = append(list, emailOfPost, emailOfComment)
+
+	return list, nil
 }

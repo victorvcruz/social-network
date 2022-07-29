@@ -6,6 +6,7 @@ import (
 	"social_network_project/database/repository"
 	"social_network_project/entities"
 	"social_network_project/entities/response"
+	message_broker "social_network_project/message-broker"
 )
 
 type CommentsController interface {
@@ -19,13 +20,15 @@ type CommentsControllerStruct struct {
 	repositoryComment repository.CommentRepository
 	repositoryAccount repository.AccountRepository
 	repositoryPost    repository.PostRepository
+	rabbitControl     *message_broker.NotificationControl
 }
 
-func NewCommentsController(postgresDB *sql.DB) CommentsController {
+func NewCommentsController(postgresDB *sql.DB, rabbitmq *message_broker.NotificationControl) CommentsController {
 	return &CommentsControllerStruct{
 		repositoryComment: repository.NewComentRepository(postgresDB),
 		repositoryAccount: repository.NewAccountRepository(postgresDB),
 		repositoryPost:    repository.NewPostRepository(postgresDB),
+		rabbitControl:     rabbitmq,
 	}
 }
 
@@ -54,6 +57,7 @@ func (c *CommentsControllerStruct) InsertComment(comment *entities.Comment) erro
 		return &errors.NotFoundPostIDError{}
 	}
 
+	c.rabbitControl.SendMessage(message_broker.CreateNotificationJson("Comment", comment.ID))
 	return nil
 }
 
