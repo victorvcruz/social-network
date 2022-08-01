@@ -2,7 +2,7 @@
 
 > This project is an inspiration from the social business network Linkedin. Built on a monolithic architecture, it uses rest API, cache, sql and message-broker.
 <p align="center">
-  <img src="/assets/arch-diagram.drawio.svg" height="400">
+  <img src="/assets/arch-diagram.png" height="440">
 </p>
 
 ----
@@ -50,6 +50,14 @@ The project is a CRUD application of four operations
 * Interaction
 
 To create operations define your **API_PORT** in `.env` file for use by endpoints
+
+### Diagram of Database
+
+<p align="center">
+  <img src="/assets/db-diagram.png" height="400">
+</p>
+
+----
 
 ### Account Operations
 - The `http://localhost:8080/accounts` endpoint is used for creating new accounts
