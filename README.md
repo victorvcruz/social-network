@@ -1,7 +1,12 @@
 # Social Network Project
 
 > This project is an inspiration from the social business network Linkedin. Built on a monolithic architecture, it uses rest API, cache, sql and message-broker.
+<p align="center">
+  <img src="/assets/arch-diagram.drawio.svg" height="400">
+</p>
+
 ----
+
 ### Built With
 
 * <img height="60" src="https://raw.githubusercontent.com/gin-gonic/logo/master/color.png" alt="gin-gonic"/>
