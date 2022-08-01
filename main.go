@@ -31,12 +31,6 @@ func main() {
 		log.Fatal("Error connecting message-broker rabbitMQ")
 	}
 
-	//rabbitmq.SendMessage()
-	//rabbitmq.SendMessage()
-	//rabbitmq.SendMessage()
-	//rabbitmq.SendMessage()
-	//rabbitmq.ConsumerMessage()
-
 	api := api.InitAPI(postgresqlDB, redisDB, rabbitConn)
 
 	api.Run(":" + os.Getenv("API_PORT"))
