@@ -1,7 +1,21 @@
 # Social Network Project
 
 > This project is an inspiration from the social business network Linkedin. Built on a monolithic architecture, it uses rest API, cache, sql and message-broker.
+<p align="center">
+  <img src="/assets/arch-diagram.png" height="440">
+</p>
+
 ----
+
+### Diagram of Database
+
+<p align="center">
+  <img src="/assets/db-diagram.png" height="400">
+</p>
+
+----
+
+
 ### Built With
 
 * <img height="60" src="https://raw.githubusercontent.com/gin-gonic/logo/master/color.png" alt="gin-gonic"/>
@@ -35,8 +49,9 @@
    ```sh
    sudo docker-compose up -d
    ```
-
+  
 ## Usage
+   
 The project is a CRUD application of four operations
 
 * Account
@@ -45,6 +60,13 @@ The project is a CRUD application of four operations
 * Interaction
 
 To create operations define your **API_PORT** in `.env` file for use by endpoints
+
+### To start execution
+* run
+   ```sh
+   go run main.go
+   ```
+
 
 ### Account Operations
 - The `http://localhost:8080/accounts` endpoint is used for creating new accounts
