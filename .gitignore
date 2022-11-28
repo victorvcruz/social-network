@@ -10,4 +10,13 @@ rabbitmq_data
 # jetbrains IDE
 .idea
 
+# jetbrains IDE
+.env
+
+# jetbrains IDE
+docker-compose.yml
+
+# jetbrains IDE
+init.sql
+
 
