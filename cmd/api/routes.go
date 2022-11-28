@@ -23,7 +23,7 @@ func Init(
 	app.POST("/accounts/follows", accounts.FollowAccount)
 	app.GET("/accounts/following", accounts.SearchFollowing)
 	app.GET("/accounts/follower", accounts.SearchFollowers)
-	app.DELETE("/accounts/follows", accounts.UnfollowAccount)
+	app.DELETE("/accounts/unfollow", accounts.UnfollowAccount)
 
 	app.POST("/comments/:post", comments.CreateComment)
 	app.GET("/accounts/comments", comments.GetComment)
